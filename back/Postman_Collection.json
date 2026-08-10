@@ -1,0 +1,315 @@
+{
+  "info": {
+    "name": "Business & Product Management API",
+    "description": "Complete CRUD API for Business and Product management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Business Management",
+      "item": [
+        {
+          "name": "Create Business",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Store\",\n  \"type\": \"Retail\",\n  \"location\": \"123 Main Street, City\",\n  \"description\": \"A local retail store selling groceries\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/businesses",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "businesses"
+              ]
+            },
+            "description": "Create a new business"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Businesses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/businesses",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "businesses"
+              ]
+            },
+            "description": "Retrieve all businesses"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Business by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/businesses/:businessId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "businesses",
+                ":businessId"
+              ],
+              "variable": [
+                {
+                  "key": "businessId",
+                  "value": "PASTE_BUSINESS_ID_HERE"
+                }
+              ]
+            },
+            "description": "Retrieve a specific business by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Business",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Store Name\",\n  \"type\": \"Wholesale\",\n  \"location\": \"456 Oak Avenue, City\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/businesses/:businessId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "businesses",
+                ":businessId"
+              ],
+              "variable": [
+                {
+                  "key": "businessId",
+                  "value": "PASTE_BUSINESS_ID_HERE"
+                }
+              ]
+            },
+            "description": "Update a specific business"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Business",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/businesses/:businessId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "businesses",
+                ":businessId"
+              ],
+              "variable": [
+                {
+                  "key": "businessId",
+                  "value": "PASTE_BUSINESS_ID_HERE"
+                }
+              ]
+            },
+            "description": "Delete a specific business"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Product Management",
+      "item": [
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"business\": \"PASTE_BUSINESS_ID_HERE\",\n  \"name\": \"Apples\",\n  \"purchasePrice\": 0.50,\n  \"price\": 1.20,\n  \"quantity\": 100,\n  \"unit\": \"kg\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/products",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": "Create a new product (business ID must exist)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Products by Business",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/products/business/:businessId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "products",
+                "business",
+                ":businessId"
+              ],
+              "variable": [
+                {
+                  "key": "businessId",
+                  "value": "PASTE_BUSINESS_ID_HERE"
+                }
+              ]
+            },
+            "description": "Get all products for a specific business"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/products/:productId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "products",
+                ":productId"
+              ],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "PASTE_PRODUCT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Retrieve a specific product by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Red Apples\",\n  \"purchasePrice\": 0.55,\n  \"price\": 1.30,\n  \"quantity\": 150,\n  \"unit\": \"kg\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:3000/api/products/:productId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "products",
+                ":productId"
+              ],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "PASTE_PRODUCT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Update a specific product"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3000/api/products/:productId",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3000",
+              "path": [
+                "api",
+                "products",
+                ":productId"
+              ],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "PASTE_PRODUCT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Delete a specific product"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

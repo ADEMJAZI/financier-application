@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../theme/app_colors.dart';
@@ -15,8 +15,11 @@ import '../../widgets/loading_shimmer.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_snackbar.dart';
 import '../../widgets/confirmation_dialog.dart';
+import '../../widgets/premium_card.dart';
+import '../../widgets/gradient_fab.dart';
 import '../../models/menu_item.dart';
 import '../../models/product.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class MenuItemsScreen extends ConsumerWidget {
   const MenuItemsScreen({super.key});
@@ -65,10 +68,13 @@ class MenuItemsScreen extends ConsumerWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(heroTag: null,
-        onPressed: () => _showAddMenuItemSheet(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Menu Item'),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 100),
+        child: GradientFAB(
+          icon: LucideIcons.plus,
+          label: 'Add Menu Item',
+          onPressed: () => _showAddMenuItemSheet(context, ref),
+        ),
       ),
     );
   }
@@ -103,7 +109,7 @@ class MenuItemsScreen extends ConsumerWidget {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.edit_outlined),
+            leading: const Icon(LucideIcons.edit2),
             title: const Text('Edit Details'),
             onTap: () {
               Navigator.pop(ctx);
@@ -119,7 +125,7 @@ class MenuItemsScreen extends ConsumerWidget {
           ),
           if (menuItem.isActive)
             ListTile(
-              leading: const Icon(Icons.archive_outlined, color: AppColors.warningLight),
+              leading: const Icon(LucideIcons.archive, color: AppColors.warningLight),
               title: const Text('Deactivate', style: TextStyle(color: AppColors.warningLight)),
               onTap: () async {
                 Navigator.pop(ctx);
@@ -141,7 +147,7 @@ class MenuItemsScreen extends ConsumerWidget {
             )
           else
             ListTile(
-              leading: const Icon(Icons.unarchive_outlined, color: AppColors.successLight),
+              leading: const Icon(LucideIcons.packageOpen, color: AppColors.successLight),
               title: const Text('Activate', style: TextStyle(color: AppColors.successLight)),
               onTap: () async {
                 Navigator.pop(ctx);
@@ -157,7 +163,7 @@ class MenuItemsScreen extends ConsumerWidget {
               },
             ),
           ListTile(
-            leading: const Icon(Icons.delete_outline, color: AppColors.dangerLight),
+            leading: const Icon(LucideIcons.trash2, color: AppColors.dangerLight),
             title: const Text('Delete Permanently', style: TextStyle(color: AppColors.dangerLight)),
             onTap: () async {
               Navigator.pop(ctx);
@@ -202,29 +208,35 @@ class _MenuItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primary = isDark ? AppColors.primaryDark : AppColors.primaryLight;
     final isInactive = !menuItem.isActive;
 
-    return Card(
+    return PremiumCard(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(isInactive ? 0.05 : 0.1),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                ),
-                child: Icon(
-                  Icons.restaurant,
-                  color: theme.colorScheme.primary.withOpacity(isInactive ? 0.3 : 1.0),
-                  size: 28,
-                ),
+      padding: EdgeInsets.zero,
+      isSelected: !isInactive,
+      selectedAccentColor: primary,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                gradient: isInactive 
+                    ? null 
+                    : AppColors.iconContainerGradient(primary, isDark: isDark),
+                color: isInactive ? theme.colorScheme.onSurface.withOpacity(0.05) : null,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
               ),
+              child: Icon(
+                LucideIcons.utensils,
+                color: isInactive ? theme.colorScheme.onSurface.withOpacity(0.3) : primary,
+                size: 28,
+              ),
+            ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -295,7 +307,6 @@ class _MenuItemCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }
@@ -546,7 +557,13 @@ class _MenuItemFormSheetState extends ConsumerState<_MenuItemFormSheet> {
         if (mounted) AppSnackbar.error(context, e.message ?? e.toString());
       }
     } catch (e) {
-      if (mounted) AppSnackbar.error(context, e.toString());
+      if (mounted) {
+        String msg = e.toString();
+        if (msg.startsWith('Exception: ')) {
+          msg = msg.substring(11);
+        }
+        AppSnackbar.error(context, msg);
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

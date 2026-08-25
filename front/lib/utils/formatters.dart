@@ -4,7 +4,7 @@ class Formatters {
   // Format currency in Tunisian Dinar (TND)
   // Tunisia uses: space as thousands separator, dot as decimal separator
   // Example: 20000.500 → "20 000.500 DT" or "20.000 DT" for whole dinars
-  static String currency(double amount) {
+  static String currency(num amount) {
     // Use a custom pattern: space for thousands, dot for decimals
     // The pattern #,##0.000 with proper locale substitution
     final formatter = NumberFormat('#,##0.000', 'en_US');
@@ -17,7 +17,7 @@ class Formatters {
   }
   
   // Format number with thousand separators (Tunisian format: space separator)
-  static String number(double number) {
+  static String number(num number) {
     final formatter = NumberFormat('#,##0.###', 'en_US');
     String formatted = formatter.format(number);
     // Replace comma with space for thousands separator

@@ -4,6 +4,8 @@ import '../../l10n/app_localizations.dart';
 import '../../providers/business_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/app_snackbar.dart';
+import '../../widgets/glassy_nav_bar.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -78,14 +80,14 @@ class _MobileLayout extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(
         index: currentIndex,
         children: screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: GlassyNavBar(
         currentIndex: currentIndex,
-        type: BottomNavigationBarType.fixed,
-        onTap: onIndexChanged,
+        onIndexChanged: onIndexChanged,
         items: _navItems(l10n),
       ),
     );
@@ -124,9 +126,8 @@ class _DesktopLayout extends StatelessWidget {
             width: AppSpacing.sidebarWidth,
             decoration: BoxDecoration(
               color: sidebarBg,
-              border: Border(
-                right: BorderSide(color: borderColor, width: 1),
-                left: BorderSide(color: borderColor, width: 1),
+              border: BorderDirectional(
+                end: BorderSide(color: borderColor, width: 1),
               ),
             ),
             child: SafeArea(
@@ -139,7 +140,7 @@ class _DesktopLayout extends StatelessWidget {
                     height: 40,
                     decoration: BoxDecoration(
                       color: primary,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                      borderRadius: const BorderRadiusDirectional.all(Radius.circular(AppSpacing.radiusSm)),
                     ),
                     child: const Center(
                       child: Text(
@@ -162,7 +163,7 @@ class _DesktopLayout extends StatelessWidget {
                     final color = isSelected ? primary : textSecondary;
 
                     return Padding(
-                      padding: const EdgeInsets.symmetric(
+                      padding: const EdgeInsetsDirectional.symmetric(
                         vertical: AppSpacing.xs,
                       ),
                       child: Tooltip(
@@ -172,8 +173,7 @@ class _DesktopLayout extends StatelessWidget {
                           color: Colors.transparent,
                           child: InkWell(
                             onTap: () => onIndexChanged(i),
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.radiusSm),
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                             child: SizedBox(
                               width: 56,
                               height: 56,
@@ -181,16 +181,15 @@ class _DesktopLayout extends StatelessWidget {
                                 alignment: Alignment.center,
                                 children: [
                                   if (isSelected)
-                                    Positioned(
-                                      right: 0,
+                                    PositionedDirectional(
+                                      end: 0,
                                       top: 8,
                                       bottom: 8,
                                       child: Container(
                                         width: 3,
                                         decoration: BoxDecoration(
                                           color: primary,
-                                          borderRadius:
-                                              BorderRadius.circular(2),
+                                          borderRadius: const BorderRadiusDirectional.all(Radius.circular(2)),
                                         ),
                                       ),
                                     ),

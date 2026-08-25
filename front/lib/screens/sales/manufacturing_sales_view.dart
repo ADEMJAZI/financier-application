@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/business.dart';
 import '../../models/menu_item.dart';
@@ -20,6 +21,9 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/error_state.dart';
 import '../../widgets/loading_shimmer.dart';
 import '../../widgets/app_snackbar.dart';
+import '../../widgets/fade_in_up.dart';
+import '../../widgets/bouncy_tap_widget.dart';
+import '../../widgets/animated_count.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/reports_provider.dart';
 import '../../providers/sale_provider.dart';
@@ -125,16 +129,24 @@ class ManufacturingSalesView extends ConsumerWidget {
                               final qty = ref
                                   .watch(orderCartProvider.notifier)
                                   .getItemQuantity(item.id);
-                              return _MenuItemCard(
-                                menuItem: item,
-                                quantity: qty,
-                                isDark: isDark,
-                                onAdd: () => ref
-                                    .read(orderCartProvider.notifier)
-                                    .addItem(item),
-                                onRemove: () => ref
-                                    .read(orderCartProvider.notifier)
-                                    .decrementItem(item.id),
+                              return FadeInUp(
+                                delay: Duration(milliseconds: i * 50),
+                                child: BouncyTapWidget(
+                                  onPressed: () => ref
+                                      .read(orderCartProvider.notifier)
+                                      .addItem(item),
+                                  child: _MenuItemCard(
+                                    menuItem: item,
+                                    quantity: qty,
+                                    isDark: isDark,
+                                    onAdd: () => ref
+                                        .read(orderCartProvider.notifier)
+                                        .addItem(item),
+                                    onRemove: () => ref
+                                        .read(orderCartProvider.notifier)
+                                        .decrementItem(item.id),
+                                  ),
+                                ),
                               );
                             },
                           );
@@ -189,12 +201,19 @@ class _RevenueSummaryBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = isDark ? AppColors.primaryDark : AppColors.primaryLight;
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding: const EdgeInsetsDirectional.symmetric(
         horizontal: AppSpacing.lg,
         vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
-        color: primary.withOpacity(0.08),
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
+          colors: [
+            primary.withOpacity(isDark ? 0.15 : 0.10),
+            primary.withOpacity(isDark ? 0.05 : 0.03),
+          ],
+        ),
         border: Border(
           bottom: BorderSide(
             color: isDark ? AppColors.borderDark : AppColors.borderLight,
@@ -211,10 +230,10 @@ class _RevenueSummaryBar extends StatelessWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: primary.withOpacity(0.15),
+                    gradient: AppColors.iconContainerGradient(primary, isDark: isDark),
                     borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                   ),
-                  child: Icon(Icons.trending_up, color: primary, size: 18),
+                  child: Icon(LucideIcons.trendingUp, color: primary, size: 18),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Column(
@@ -229,13 +248,14 @@ class _RevenueSummaryBar extends StatelessWidget {
                             : AppColors.textSecondaryLight,
                       ),
                     ),
-                    Text(
-                      Formatters.currency(revenue),
-                      style: AppTypography.currencySmall.copyWith(
+                    AnimatedCount(
+                      value: revenue,
+                      formatter: Formatters.currency,
+                      style: AppTypography.h3.copyWith(
+                        fontFamily: AppTypography.numberFontFamily,
                         color: isDark
                             ? AppColors.textPrimaryDark
                             : AppColors.textPrimaryLight,
-                        fontFamily: AppTypography.numberFontFamily,
                       ),
                     ),
                   ],
@@ -245,13 +265,14 @@ class _RevenueSummaryBar extends StatelessWidget {
           ),
           // Order count badge
           Container(
-            padding: const EdgeInsets.symmetric(
+            padding: const EdgeInsetsDirectional.symmetric(
               horizontal: AppSpacing.md,
               vertical: AppSpacing.xs,
             ),
             decoration: BoxDecoration(
-              color: primary.withOpacity(0.12),
+              gradient: AppColors.iconContainerGradient(primary, isDark: isDark),
               borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+              border: Border.all(color: primary.withOpacity(0.25)),
             ),
             child: Text(
               '$orderCount ${AppLocalizations.of(context)!.todaysOrders}',
@@ -321,10 +342,10 @@ class _MenuItemCard extends StatelessWidget {
               width: hasQty ? 1.5 : 1,
             ),
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
               colors: [
-                isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6),
+                primary.withOpacity(isDark ? 0.08 : 0.04),
                 Colors.transparent,
               ],
             ),
@@ -342,14 +363,7 @@ class _MenuItemCard extends StatelessWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          primary.withOpacity(0.08),
-                          primary.withOpacity(0.16),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      gradient: AppColors.iconContainerGradient(primary, isDark: isDark),
                       borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                     ),
                     child: Icon(
@@ -472,24 +486,24 @@ class _MenuItemCard extends StatelessWidget {
   IconData _getMenuItemIcon(String name) {
     final n = name.toLowerCase();
     if (n.contains('burger') || n.contains('sandwich') || n.contains('برغر')) {
-      return Icons.lunch_dining;
+      return LucideIcons.beef;
     }
-    if (n.contains('pizza') || n.contains('بيتزا')) return Icons.local_pizza;
-    if (n.contains('coffee') || n.contains('tea') || n.contains('قهوة') || n.contains('شاي')) {
-      return Icons.local_cafe;
-    }
-    if (n.contains('salad') || n.contains('سلطة')) return Icons.eco;
-    if (n.contains('soup') || n.contains('شوربة')) return Icons.soup_kitchen;
-    if (n.contains('chicken') || n.contains('meat') || n.contains('دجاج') || n.contains('لحم')) {
-      return Icons.set_meal;
-    }
-    if (n.contains('fish') || n.contains('سمك')) return Icons.set_meal;
-    if (n.contains('pasta') || n.contains('معكرونة')) return Icons.ramen_dining;
-    if (n.contains('dessert') || n.contains('cake') || n.contains('حلوى')) return Icons.cake;
-    if (n.contains('drink') || n.contains('juice') || n.contains('عصير')) return Icons.local_drink;
-    if (n.contains('bread') || n.contains('خبز')) return Icons.bakery_dining;
-    if (n.contains('شاورما')) return Icons.kebab_dining;
-    return Icons.restaurant_menu;
+    if (n.contains('pizza') || n.contains('بيتزا')) return LucideIcons.pizza;
+    if (n.contains('coffee') || n.contains('قهوة')) return LucideIcons.coffee;
+    if (n.contains('tea') || n.contains('شاي')) return LucideIcons.cupSoda;
+    if (n.contains('salad') || n.contains('سلطة')) return LucideIcons.salad;
+    if (n.contains('soup') || n.contains('شوربة')) return LucideIcons.soup;
+    if (n.contains('chicken') || n.contains('دجاج')) return LucideIcons.drumstick;
+    if (n.contains('meat') || n.contains('لحم')) return LucideIcons.beef;
+    if (n.contains('fish') || n.contains('سمك')) return LucideIcons.fish;
+    if (n.contains('pasta') || n.contains('معكرونة')) return LucideIcons.wheat;
+    if (n.contains('dessert') || n.contains('cake') || n.contains('حلوى')) return LucideIcons.cake;
+    if (n.contains('juice') || n.contains('عصير')) return LucideIcons.glassWater;
+    if (n.contains('drink') || n.contains('مشروب')) return LucideIcons.cupSoda;
+    if (n.contains('bread') || n.contains('خبز')) return LucideIcons.croissant;
+    if (n.contains('شاورما')) return LucideIcons.utensils;
+    if (n.contains('rice') || n.contains('أرز')) return LucideIcons.utensils;
+    return LucideIcons.utensils;
   }
 }
 
@@ -549,7 +563,6 @@ class _GlassCartBarState extends ConsumerState<_GlassCartBar> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = widget.isDark ? AppColors.primaryDark : AppColors.primaryLight;
     final glass = widget.isDark ? AppColors.glassDark : AppColors.glassLight;
     final border = widget.isDark ? AppColors.borderDark : AppColors.borderLight;
     final textPrimary = widget.isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
@@ -584,36 +597,56 @@ class _GlassCartBarState extends ConsumerState<_GlassCartBar> {
               top: false,
               child: Row(
                 children: [
-                  // Checkout button
+                  // Checkout button — gradient
                   SizedBox(
                     height: AppSpacing.minTouchTarget,
-                    child: ElevatedButton.icon(
-                      onPressed: _isCheckingOut ? null : () => _checkout(context, ref),
-                      icon: _isCheckingOut
-                          ? SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white.withOpacity(0.7),
+                    child: _isCheckingOut
+                        ? Container(
+                            padding: const EdgeInsetsDirectional.symmetric(
+                              horizontal: AppSpacing.xl,
+                            ),
+                            height: AppSpacing.minTouchTarget,
+                            decoration: BoxDecoration(
+                              gradient: AppColors.fabGradient,
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                            ),
+                            child: Center(
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white.withOpacity(0.8),
+                                ),
                               ),
-                            )
-                          : const Icon(Icons.shopping_cart_checkout, size: 20),
-                      label: Text(
-                        _isCheckingOut ? AppLocalizations.of(context)!.processing : AppLocalizations.of(context)!.checkout,
-                        style: AppTypography.button.copyWith(color: Colors.white),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: primary.withOpacity(0.5),
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                        ),
-                      ),
-                    ),
+                            ),
+                          )
+                        : GestureDetector(
+                            onTap: () => _checkout(context, ref),
+                            child: Container(
+                              padding: const EdgeInsetsDirectional.symmetric(
+                                horizontal: AppSpacing.xl,
+                              ),
+                              height: AppSpacing.minTouchTarget,
+                              decoration: BoxDecoration(
+                                gradient: AppColors.fabGradient,
+                                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                                boxShadow: AppColors.fabGlow(),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.shopping_cart_checkout,
+                                      size: 20, color: Colors.white),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Text(
+                                    AppLocalizations.of(context)!.checkout,
+                                    style: AppTypography.button.copyWith(color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                   ),
 
                   const SizedBox(width: AppSpacing.lg),
@@ -624,13 +657,14 @@ class _GlassCartBarState extends ConsumerState<_GlassCartBar> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          Formatters.currency(widget.cart.totalAmount),
-                          style: AppTypography.currencyMedium.copyWith(
+                        AnimatedCount(
+                          value: widget.cart.totalAmount,
+                          formatter: Formatters.currency,
+                          style: AppTypography.h2.copyWith(
                             color: textPrimary,
+                            fontWeight: AppTypography.bold,
                             fontFamily: AppTypography.numberFontFamily,
                           ),
-                          textAlign: TextAlign.end,
                         ),
                         const SizedBox(height: 2),
                         Text(

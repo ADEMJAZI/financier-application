@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/business.dart';
 import '../../models/product.dart';
@@ -14,6 +15,9 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/error_state.dart';
 import '../../widgets/loading_shimmer.dart';
 import '../../widgets/app_snackbar.dart';
+import '../../widgets/fade_in_up.dart';
+import '../../widgets/bouncy_tap_widget.dart';
+import '../../widgets/animated_count.dart';
 
 /// Resale mode: Products with stock tracking, shows profit per sale
 class ResaleSalesView extends ConsumerWidget {
@@ -51,6 +55,7 @@ class ResaleSalesView extends ConsumerWidget {
             data: (summary) => _SummaryBar(
               title: 'Today\'s Revenue',
               value: Formatters.currency(summary.totalRevenue),
+              numericValue: summary.totalRevenue,
               subtitle: '${summary.saleCount} sales',
               color: AppColors.successLight,
             ),
@@ -100,10 +105,13 @@ class ResaleSalesView extends ConsumerWidget {
                         itemCount: availableProducts.length,
                         itemBuilder: (context, index) {
                           final product = availableProducts[index];
-                          return _ProductSaleCard(
-                            product: product,
-                            onSell: () => _recordSale(context, ref, product),
-                            onQuickSell: () => _recordQuickSale(context, ref, product),
+                          return FadeInUp(
+                            delay: Duration(milliseconds: index * 50),
+                            child: _ProductSaleCard(
+                              product: product,
+                              onSell: () => _recordSale(context, ref, product),
+                              onQuickSell: () => _recordQuickSale(context, ref, product),
+                            ),
                           );
                         },
                       );
@@ -217,87 +225,101 @@ class _ProductSaleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final primary = theme.colorScheme.primary;
 
-    return Card(
-      child: InkWell(
-        onTap: onSell,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6),
-                Colors.transparent,
-              ],
-            ),
-          ),
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                ),
-                child: Icon(
-                  Icons.shopping_bag_outlined,
-                  color: theme.colorScheme.primary,
-                  size: 32,
-                ),
+    return BouncyTapWidget(
+      onPressed: onSell,
+      child: Card(
+        child: InkWell(
+          onTap: onSell,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              gradient: LinearGradient(
+                begin: AlignmentDirectional.topStart,
+                end: AlignmentDirectional.bottomEnd,
+                colors: [
+                  primary.withOpacity(isDark ? 0.08 : 0.04),
+                  Colors.transparent,
+                ],
               ),
-              const SizedBox(height: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
+            ),
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.iconContainerGradient(primary, isDark: isDark),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  ),
+                  child: Icon(
+                    LucideIcons.shoppingBag,
+                    color: primary,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        product.name,
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontWeight: AppTypography.semiBold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Stock: ${product.quantity} ${product.unit}',
+                        style: AppTypography.bodySmall.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      product.name,
-                      style: AppTypography.bodyMedium.copyWith(
+                      Formatters.currency(product.price),
+                      style: AppTypography.bodyLarge.copyWith(
                         fontWeight: AppTypography.semiBold,
+                        color: primary,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Stock: ${product.quantity} ${product.unit}',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    // Gradient quick-sell button
+                    GestureDetector(
+                      onTap: onQuickSell,
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.fabGradient,
+                          shape: BoxShape.circle,
+                          boxShadow: AppColors.fabGlow(),
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.white,
+                          size: 18,
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
-              ),
-              const Divider(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    Formatters.currency(product.price),
-                    style: AppTypography.bodyLarge.copyWith(
-                      fontWeight: AppTypography.semiBold,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle),
-                    color: theme.colorScheme.primary,
-                    iconSize: 28,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: onQuickSell,
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -308,12 +330,14 @@ class _ProductSaleCard extends StatelessWidget {
 class _SummaryBar extends StatelessWidget {
   final String title;
   final String value;
+  final double? numericValue;
   final String subtitle;
   final Color color;
 
   const _SummaryBar({
     required this.title,
     required this.value,
+    this.numericValue,
     required this.subtitle,
     required this.color,
   });
@@ -321,29 +345,68 @@ class _SummaryBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      color: color.withOpacity(0.1),
+      padding: const EdgeInsetsDirectional.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
+          colors: [
+            color.withOpacity(isDark ? 0.15 : 0.10),
+            color.withOpacity(isDark ? 0.05 : 0.03),
+          ],
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: color.withOpacity(isDark ? 0.20 : 0.15),
+          ),
+        ),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(
-                title,
-                style: AppTypography.bodySmall.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  gradient: AppColors.iconContainerGradient(color, isDark: isDark),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
+                child: Icon(LucideIcons.trendingUp, color: color, size: 18),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                value,
-                style: AppTypography.h3.copyWith(
-                  color: color,
-                  fontWeight: AppTypography.bold,
-                ),
+              const SizedBox(width: AppSpacing.md),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  numericValue != null
+                      ? AnimatedCount(
+                          value: numericValue!,
+                          formatter: Formatters.currency,
+                          style: AppTypography.h3.copyWith(
+                            color: color,
+                            fontWeight: AppTypography.bold,
+                            fontFamily: AppTypography.numberFontFamily,
+                          ),
+                        )
+                      : Text(
+                          value,
+                          style: AppTypography.h3.copyWith(
+                            color: color,
+                            fontWeight: AppTypography.bold,
+                          ),
+                        ),
+                ],
               ),
             ],
           ),

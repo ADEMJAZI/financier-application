@@ -6,7 +6,8 @@ import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/auth/forgot_password_screen.dart';
-import '../screens/auth/reset_password_screen.dart';
+import '../screens/auth/verify_reset_code_screen.dart';
+import '../screens/auth/set_new_password_screen.dart';
 import '../screens/business_picker/business_picker_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/reserves/reserves_screen.dart';
@@ -22,6 +23,8 @@ import '../screens/menu_items/menu_items_screen.dart';
 import '../screens/sales/sales_screen.dart';
 import '../screens/orders/order_history_screen.dart';
 import '../screens/ai/anomaly_list_screen.dart';
+import '../widgets/app_animations.dart';
+import '../screens/auth/verify_email_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -65,13 +68,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       final isAuthRoute = state.matchedLocation == '/login' ||
                          state.matchedLocation == '/register' ||
+                         state.matchedLocation == '/verify-email' ||
                          state.matchedLocation == '/forgot-password' ||
-                         state.matchedLocation.startsWith('/reset-password');
+                         state.matchedLocation == '/verify-reset-code' ||
+                         state.matchedLocation == '/set-new-password';
 
-      // Still loading auth state — stay put, show nothing until resolved
+      // Still loading auth state — show login screen instead of blank screen.
+      // Once auth resolves, refreshListenable will re-trigger redirect.
       if (isAuthenticated == null) {
-        // If heading somewhere protected, block until auth resolves
-        if (!isAuthRoute) return null;
+        if (!isAuthRoute) return '/login';
         return null;
       }
 
@@ -91,29 +96,48 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Auth routes
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const LoginScreen()),
       ),
       GoRoute(
         path: '/register',
-        builder: (context, state) => const RegisterScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const RegisterScreen()),
+      ),
+      GoRoute(
+        path: '/verify-email',
+        pageBuilder: (context, state) {
+          // Email is passed as a query parameter: /verify-email?email=xxx@xxx.com
+          final email = state.uri.queryParameters['email'] ?? '';
+          return AnimatedPageTransition(child: VerifyEmailScreen(email: email));
+        },
       ),
       GoRoute(
         path: '/forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
+        pageBuilder: (context, state) =>
+            AnimatedPageTransition(child: const ForgotPasswordScreen()),
       ),
       GoRoute(
-        path: '/reset-password',
-        builder: (context, state) {
-          // Token arrives as a query parameter: /reset-password?token=xxx
-          final token = state.uri.queryParameters['token'] ?? '';
-          return ResetPasswordScreen(token: token);
+        path: '/verify-reset-code',
+        pageBuilder: (context, state) {
+          final email =
+              Uri.decodeComponent(state.uri.queryParameters['email'] ?? '');
+          return AnimatedPageTransition(
+              child: VerifyResetCodeScreen(email: email));
+        },
+      ),
+      GoRoute(
+        path: '/set-new-password',
+        pageBuilder: (context, state) {
+          final token =
+              Uri.decodeComponent(state.uri.queryParameters['token'] ?? '');
+          return AnimatedPageTransition(
+              child: SetNewPasswordScreen(resetSessionToken: token));
         },
       ),
       
       // Business picker (post-auth landing)
       GoRoute(
         path: '/business-picker',
-        builder: (context, state) => const BusinessPickerScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const BusinessPickerScreen()),
       ),
       
       // Main app routes (protected)
@@ -123,59 +147,59 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/dashboard',
-        builder: (context, state) => const HomeScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const HomeScreen()),
       ),
       GoRoute(
         path: '/reserves',
-        builder: (context, state) => const ReservesScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const ReservesScreen()),
       ),
       GoRoute(
         path: '/cash-register',
-        builder: (context, state) => const CashRegisterScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const CashRegisterScreen()),
       ),
       GoRoute(
         path: '/waste',
-        builder: (context, state) => const WasteScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const WasteScreen()),
       ),
       GoRoute(
         path: '/suppliers',
-        builder: (context, state) => const SuppliersScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const SuppliersScreen()),
       ),
       GoRoute(
         path: '/employees',
-        builder: (context, state) => const EmployeesScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const EmployeesScreen()),
       ),
       GoRoute(
         path: '/reports',
-        builder: (context, state) => const ReportsScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const ReportsScreen()),
       ),
       GoRoute(
         path: '/reorder',
-        builder: (context, state) => const ReorderScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const ReorderScreen()),
       ),
       GoRoute(
         path: '/audit-log',
-        builder: (context, state) => const AuditLogScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const AuditLogScreen()),
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const SettingsScreen()),
       ),
       GoRoute(
         path: '/menu-items',
-        builder: (context, state) => const MenuItemsScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const MenuItemsScreen()),
       ),
       GoRoute(
         path: '/sales',
-        builder: (context, state) => const SalesScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const SalesScreen()),
       ),
       GoRoute(
         path: '/order-history',
-        builder: (context, state) => const OrderHistoryScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const OrderHistoryScreen()),
       ),
       GoRoute(
         path: '/anomalies',
-        builder: (context, state) => const AnomalyListScreen(),
+        pageBuilder: (context, state) => AnimatedPageTransition(child: const AnomalyListScreen()),
       ),
     ],
   );
@@ -186,3 +210,5 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   });
   return router;
 });
+
+

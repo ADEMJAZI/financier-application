@@ -6,17 +6,17 @@ const { Server } = require('socket.io');
 const { generalApiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
-const server = http.createServer(app);
 
 // ── Trust proxy ────────────────────────────────────────────────────────────────
-// Set to 1 when deployed behind a single reverse proxy (nginx, AWS ALB,
-// Render, Railway, Heroku, etc.) so express-rate-limit uses the real client
-// IP from X-Forwarded-For instead of the proxy's IP.
-// For multiple proxy hops (e.g. Cloudflare → nginx) set the hop count: 2.
-// Leave commented out for local development with no proxy.
-// app.set('trust proxy', 1);
+// Required when deployed behind a single reverse proxy (Render, Railway,
+// Heroku, nginx, AWS ALB, etc.) so express-rate-limit resolves the real
+// client IP from X-Forwarded-For instead of the proxy's IP.
+app.set('trust proxy', 1);
 // ──────────────────────────────────────────────────────────────────────────────
 
+const server = http.createServer(app);
+
+// ── Socket.IO ─────────────────────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
     origin: '*',
@@ -25,50 +25,67 @@ const io = new Server(server, {
     credentials: false,
   },
 });
-// Middleware
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ── Middleware ─────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false,
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+// ──────────────────────────────────────────────────────────────────────────────
 
-// Statics
-// DB config
+// ── Database ───────────────────────────────────────────────────────────────────
 require('./database/dbconfig');
+// ──────────────────────────────────────────────────────────────────────────────
 
 // ── Global API rate limiter ────────────────────────────────────────────────────
 // Broad safety net: 100 req/min per IP across all /api/* routes.
-// Auth endpoints have their own tighter authLimiter on top of this.
+// Auth endpoints have their own tighter authLimiter applied on top of this.
 app.use('/api/', generalApiLimiter);
 // ──────────────────────────────────────────────────────────────────────────────
 
-// Routes
-const authRoutes = require('./routes/auth.routes');
-const businessRoutes = require('./routes/business.routes');
-const productRoutes = require('./routes/product.routes');
-const expenseRoutes = require('./routes/expense.routes');
-const reserveRoutes = require('./routes/reserve.routes');
+// ── Health check (no auth required — used by Render and monitoring) ────────────
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Backend is running',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+  });
+});
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ── Route imports ──────────────────────────────────────────────────────────────
+const authRoutes         = require('./routes/auth.routes');
+const businessRoutes     = require('./routes/business.routes');
+const productRoutes      = require('./routes/product.routes');
+const expenseRoutes      = require('./routes/expense.routes');
+const reserveRoutes      = require('./routes/reserve.routes');
 const customerDebtRoutes = require('./routes/customerDebt.routes');
 const cashRegisterRoutes = require('./routes/cashRegister.routes');
-const wasteRoutes = require('./routes/waste.routes');
-const supplierRoutes = require('./routes/supplier.routes');
-const employeeRoutes = require('./routes/employee.routes');
-const purchaseRoutes = require('./routes/purchase.routes');
-const reorderRoutes = require('./routes/reorder.routes');
-const cashFlowRoutes = require('./routes/cashFlow.routes');
-const auditLogRoutes = require('./routes/auditLog.routes');
-const saleRoutes = require('./routes/sale.routes');
-const menuItemRoutes = require('./routes/menuItem.routes');
+const wasteRoutes        = require('./routes/waste.routes');
+const supplierRoutes     = require('./routes/supplier.routes');
+const employeeRoutes     = require('./routes/employee.routes');
+const purchaseRoutes     = require('./routes/purchase.routes');
+const reorderRoutes      = require('./routes/reorder.routes');
+const cashFlowRoutes     = require('./routes/cashFlow.routes');
+const auditLogRoutes     = require('./routes/auditLog.routes');
+const saleRoutes         = require('./routes/sale.routes');
+const menuItemRoutes     = require('./routes/menuItem.routes');
 const menuItemSaleRoutes = require('./routes/menuItemSale.routes');
-const orderRoutes = require('./routes/order.routes');
-const aiRoutes = require('./routes/ai.routes');
+const orderRoutes        = require('./routes/order.routes');
+const aiRoutes           = require('./routes/ai.routes');
+// ──────────────────────────────────────────────────────────────────────────────
 
 // ── Password reset web page ────────────────────────────────────────────────────
 // Serves a self-contained HTML page at GET /reset-password?token=xxx
-// This is the URL embedded in password reset emails. It calls
-// POST /api/auth/reset-password directly via fetch, so no separate frontend
-// deployment is needed during development or for web users.
+// This is the URL embedded in password-reset emails. It calls
+// POST /api/auth/reset-password directly via fetch — no separate frontend
+// deployment is required.
 app.get('/reset-password', (req, res) => {
   const token = req.query.token || '';
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -154,7 +171,6 @@ app.get('/reset-password', (req, res) => {
   <script>
     const TOKEN = ${JSON.stringify(token)};
 
-    // Show error immediately if no token in URL
     if (!TOKEN) {
       document.getElementById('form').style.display = 'none';
       document.getElementById('invalid-token').style.display = 'block';
@@ -220,35 +236,54 @@ app.get('/reset-password', (req, res) => {
 });
 // ──────────────────────────────────────────────────────────────────────────────
 
-// Auth routes (unprotected - must be first)
-app.use('/api/auth', authRoutes);
-
-// Protected routes
-app.use('/api/businesses', businessRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/reserves', reserveRoutes);
-app.use('/api/debts', customerDebtRoutes);
+// ── API routes ─────────────────────────────────────────────────────────────────
+app.use('/api/auth',           authRoutes);
+app.use('/api/businesses',     businessRoutes);
+app.use('/api/products',       productRoutes);
+app.use('/api/expenses',       expenseRoutes);
+app.use('/api/reserves',       reserveRoutes);
+app.use('/api/debts',          customerDebtRoutes);
 app.use('/api/cash-registers', cashRegisterRoutes);
-app.use('/api/waste', wasteRoutes);
-app.use('/api/suppliers', supplierRoutes);
-app.use('/api/employees', employeeRoutes);
-app.use('/api/purchases', purchaseRoutes);
-app.use('/api/reorder', reorderRoutes);
-app.use('/api/cash-flow', cashFlowRoutes);
-app.use('/api/audit-logs', auditLogRoutes);
-app.use('/api/sales', saleRoutes);
-app.use('/api/menu-items', menuItemRoutes);
+app.use('/api/waste',          wasteRoutes);
+app.use('/api/suppliers',      supplierRoutes);
+app.use('/api/employees',      employeeRoutes);
+app.use('/api/purchases',      purchaseRoutes);
+app.use('/api/reorder',        reorderRoutes);
+app.use('/api/cash-flow',      cashFlowRoutes);
+app.use('/api/audit-logs',     auditLogRoutes);
+app.use('/api/sales',          saleRoutes);
+app.use('/api/menu-items',     menuItemRoutes);
 app.use('/api/menu-item-sales', menuItemSaleRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/ai', aiRoutes);
+app.use('/api/orders',         orderRoutes);
+app.use('/api/ai',             aiRoutes);
+// ──────────────────────────────────────────────────────────────────────────────
 
-// Lancement du serveur
+// ── 404 handler ────────────────────────────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` });
+});
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ── Global error handler ───────────────────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message || err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    success: false,
+    message: err.message || 'Internal server error',
+  });
+});
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ── Start server ───────────────────────────────────────────────────────────────
 const port = process.env.PORT || 3000;
-server.listen(port, () => {
+server.listen(port, '0.0.0.0', () => {
   console.log('\n🚀 ================================');
-  console.log(`✅ Backend démarré avec succès!`);
-  console.log(`🌐 Serveur: http://localhost:${port}`);
-  console.log('🔐 API prête à recevoir des requêtes');
+  console.log(`✅ Backend started successfully`);
+  console.log(`🌐 Listening on port ${port}`);
+  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log('🔐 API ready to accept requests');
   console.log('================================\n');
 });
+// ──────────────────────────────────────────────────────────────────────────────

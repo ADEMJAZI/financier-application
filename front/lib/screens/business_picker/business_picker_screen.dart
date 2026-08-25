@@ -132,7 +132,7 @@ class BusinessPickerScreen extends ConsumerWidget {
                             crossAxisCount: 2,
                             crossAxisSpacing: AppSpacing.lg,
                             mainAxisSpacing: AppSpacing.lg,
-                            childAspectRatio: 1.0,
+                            mainAxisExtent: 220,
                           ),
                           itemCount: businesses.length + 1, // +1 for add button
                           itemBuilder: (context, index) {
@@ -203,7 +203,7 @@ class BusinessPickerScreen extends ConsumerWidget {
   }
 }
 
-class _BusinessTile extends StatelessWidget {
+class _BusinessTile extends StatefulWidget {
   final Business business;
   final VoidCallback onTap;
 
@@ -213,50 +213,108 @@ class _BusinessTile extends StatelessWidget {
   });
 
   @override
+  State<_BusinessTile> createState() => _BusinessTileState();
+}
+
+class _BusinessTileState extends State<_BusinessTile>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _shimmerController;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     final isDark = theme.brightness == Brightness.dark;
+    final accentColor = const Color(0xFF00B894);
 
-    return Card(
-      elevation: 2,
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedBuilder(
+        animation: _shimmerController,
+        builder: (context, child) {
+          final shimmerValue = _shimmerController.value;
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                begin: Alignment(-1 + 2 * shimmerValue, -1),
+                end: Alignment(1 + 2 * shimmerValue, 1),
+                colors: [
+                  accentColor.withOpacity(0.0),
+                  accentColor.withOpacity(0.15),
+                  accentColor.withOpacity(0.0),
+                ],
+                stops: const [0.0, 0.5, 1.0],
+              ),
+            ),
+            padding: const EdgeInsets.all(1.5),
+            child: child,
+          );
+        },
         child: Container(
           decoration: BoxDecoration(
-            color: theme.cardTheme.color ?? theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6),
-                Colors.transparent,
-              ],
+            borderRadius: BorderRadius.circular(19),
+            color: isDark
+                ? const Color(0xFF0F1A2E)
+                : theme.colorScheme.surface,
+            border: Border.all(
+              color: accentColor.withOpacity(0.15),
+              width: 1,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withOpacity(0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Icon with gradient background
               Container(
-                width: 60,
-                height: 60,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(30),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      accentColor.withOpacity(0.2),
+                      const Color(0xFF00CECE).withOpacity(0.1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: accentColor.withOpacity(0.3),
+                    width: 1,
+                  ),
                 ),
                 child: Icon(
-                  business.businessType.icon,
-                  size: 32,
-                  color: theme.colorScheme.primary,
+                  widget.business.businessType.icon,
+                  size: 30,
+                  color: accentColor,
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                business.name,
+                widget.business.name,
                 style: AppTypography.labelLarge.copyWith(
                   fontWeight: AppTypography.semiBold,
                   color: theme.colorScheme.onSurface,
@@ -265,13 +323,22 @@ class _BusinessTile extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                business.businessType.displayName,
-                style: AppTypography.labelSmall.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: accentColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                textAlign: TextAlign.center,
+                child: Text(
+                  widget.business.businessType.displayName,
+                  style: AppTypography.labelSmall.copyWith(
+                    color: accentColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
           ),
@@ -289,59 +356,59 @@ class _AddBusinessTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     final isDark = theme.brightness == Brightness.dark;
+    final accentColor = const Color(0xFF00B894);
 
-    return Card(
-      elevation: 1,
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.cardTheme.color ?? theme.colorScheme.surface,
-            border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.5),
-              style: BorderStyle.solid,
-              width: 2,
-            ),
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.4),
-                Colors.transparent,
-              ],
-            ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: isDark
+              ? const Color(0xFF0F1A2E).withOpacity(0.5)
+              : theme.colorScheme.surface,
+          border: Border.all(
+            color: accentColor.withOpacity(0.25),
+            width: 1.5,
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(30),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    accentColor.withOpacity(0.2),
+                    const Color(0xFF00CECE).withOpacity(0.1),
+                  ],
                 ),
-                child: Icon(
-                  Icons.add,
-                  size: 32,
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                border: Border.all(
+                  color: accentColor.withOpacity(0.3),
+                  width: 1.5,
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Add Business',
-                style: AppTypography.labelLarge.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-                textAlign: TextAlign.center,
+              child: Icon(
+                Icons.add_rounded,
+                size: 28,
+                color: accentColor,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Add Business',
+              style: AppTypography.labelLarge.copyWith(
+                color: accentColor.withOpacity(0.8),
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );

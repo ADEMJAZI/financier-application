@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -14,6 +14,9 @@ import '../../widgets/app_button.dart';
 import '../../widgets/app_snackbar.dart';
 import '../../widgets/confirmation_dialog.dart';
 import '../../providers/business_provider.dart';
+import '../../widgets/premium_card.dart';
+import '../../widgets/gradient_fab.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class EmployeesScreen extends ConsumerWidget {
   const EmployeesScreen({super.key});
@@ -61,10 +64,13 @@ class EmployeesScreen extends ConsumerWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(heroTag: null,
-        onPressed: () => _showAddEmployeeSheet(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Employee'),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 100),
+        child: GradientFAB(
+          icon: LucideIcons.plus,
+          label: 'Add Employee',
+          onPressed: () => _showAddEmployeeSheet(context, ref),
+        ),
       ),
     );
   }
@@ -132,18 +138,24 @@ class _EmployeeCard extends StatelessWidget {
         ? (isDark ? AppColors.successDark : AppColors.successLight)
         : (isDark ? AppColors.textTertiaryDark : AppColors.textTertiaryLight);
 
-    return Card(
+    return PremiumCard(
       margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+      padding: EdgeInsets.zero,
+      isSelected: employee.isActive,
+      selectedAccentColor: primaryColor,
       child: ExpansionTile(
         tilePadding: const EdgeInsets.all(AppSpacing.lg),
         childrenPadding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
         leading: Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            color: statusColor.withOpacity(0.1),
+            gradient: employee.isActive 
+                ? AppColors.iconContainerGradient(primaryColor, isDark: isDark)
+                : null,
+            color: employee.isActive ? null : statusColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           ),
-          child: Icon(Icons.person_outline, color: statusColor, size: 24),
+          child: Icon(LucideIcons.user, color: statusColor, size: 24),
         ),
         title: Row(
           children: [
@@ -180,7 +192,7 @@ class _EmployeeCard extends StatelessWidget {
           children: [
             if (employee.isActive)
               IconButton(
-                icon: Icon(Icons.person_remove_outlined, size: 20, color: theme.colorScheme.error.withOpacity(0.6)),
+                icon: Icon(LucideIcons.userMinus, size: 20, color: theme.colorScheme.error.withOpacity(0.6)),
                 onPressed: onDeactivate,
               ),
             const Icon(Icons.expand_more),
@@ -193,7 +205,7 @@ class _EmployeeCard extends StatelessWidget {
                 Expanded(
                   child: AppButton(
                     label: 'Record Salary Payment',
-                    icon: Icons.payments_outlined,
+                    icon: LucideIcons.banknote,
                     onPressed: onRecordPayment,
                   ),
                 ),
@@ -209,7 +221,7 @@ class _EmployeeCard extends StatelessWidget {
               return ListTile(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
-                leading: Icon(Icons.check_circle_outline,
+                leading: Icon(LucideIcons.checkCircle2,
                     size: 16, color: isDark ? AppColors.successDark : AppColors.successLight),
                 title: Text(
                   Formatters.currency(p.amount),

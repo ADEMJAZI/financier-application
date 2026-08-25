@@ -28,7 +28,7 @@ class MyApp extends ConsumerWidget {
     ref.watch(authProvider);
     
     return MaterialApp.router(
-      title: 'Business Manager',
+      title: 'tijariTN',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
@@ -63,10 +63,14 @@ class SuppliersScreen extends ConsumerWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(heroTag: null,
-        onPressed: () => _showAddSupplierSheet(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Supplier'),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 100),
+        child: FloatingActionButton.extended(
+          heroTag: null,
+          icon: const Icon(Icons.add),
+          label: const Text('Add Supplier'),
+          onPressed: () => _showAddSupplierSheet(context, ref),
+        ),
       ),
     );
   }

@@ -32,10 +32,18 @@ class MoreScreen extends ConsumerWidget {
               margin: const EdgeInsets.all(AppSpacing.lg),
               padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF00B894).withOpacity(0.15),
+                    const Color(0xFF00CECE).withOpacity(0.05),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: theme.colorScheme.primary.withOpacity(0.3),
+                  color: const Color(0xFF00B894).withOpacity(0.25),
+                  width: 1,
                 ),
               ),
               child: Row(
@@ -118,7 +126,21 @@ class MoreScreen extends ConsumerWidget {
             },
           ),
 
-          const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 4),
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    Colors.white.withOpacity(0.06),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
           
           // Sales & Products Section
           _SectionHeader(title: activeBusiness?.businessType == BusinessType.manufacturing ? 'Sales & Menu' : 'Sales'),
@@ -152,7 +174,21 @@ class MoreScreen extends ConsumerWidget {
               },
             ),
 
-          const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 4),
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    Colors.white.withOpacity(0.06),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
           // Business Management Section
           _SectionHeader(title: l10n.businessManagement),
           _MenuTile(
@@ -188,7 +224,21 @@ class MoreScreen extends ConsumerWidget {
             },
           ),
 
-          const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 4),
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    Colors.white.withOpacity(0.06),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
 
           // Financial Section
           _SectionHeader(title: l10n.financial),
@@ -424,21 +474,37 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
+        AppSpacing.lg + AppSpacing.md,
         AppSpacing.xl,
         AppSpacing.lg,
         AppSpacing.sm,
       ),
-      child: Text(
-        title,
-        style: AppTypography.labelMedium.copyWith(
-          color: theme.colorScheme.primary,
-          fontWeight: AppTypography.semiBold,
-        ),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 16,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF00B894), Color(0xFF00CECE)],
+              ),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: AppTypography.labelMedium.copyWith(
+              color: const Color(0xFF00B894),
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -462,36 +528,93 @@ class _MenuTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final accentColor = const Color(0xFF00B894);
 
-    return ListTile(
-      leading: Container(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        ),
-        child: Icon(
-          icon,
-          color: theme.colorScheme.primary,
-          size: 24,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 3,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.md,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: isDark
+                  ? Colors.white.withOpacity(0.03)
+                  : Colors.black.withOpacity(0.02),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        accentColor.withOpacity(0.2),
+                        const Color(0xFF00CECE).withOpacity(0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: accentColor.withOpacity(0.15),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: accentColor,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontWeight: AppTypography.semiBold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: AppTypography.bodySmall.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.45),
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                if (trailing != null) trailing!
+                else if (onTap != null)
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.white.withOpacity(0.2),
+                    size: 20,
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
-      title: Text(
-        title,
-        style: AppTypography.bodyMedium.copyWith(
-          fontWeight: AppTypography.semiBold,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: AppTypography.bodySmall.copyWith(
-          color: theme.colorScheme.onSurface.withOpacity(0.6),
-        ),
-      ),
-      trailing: trailing ?? (onTap != null 
-          ? const Icon(Icons.chevron_right)
-          : null),
-      onTap: onTap,
     );
   }
 }

@@ -192,37 +192,63 @@ class AuthService {
     }
   }
 
-  /// Sends a password reset email. Always returns the server's safe message
-  /// (same regardless of whether the email exists — prevents enumeration).
-  /// Throws only on network/server errors, not on 200 "email not found" cases.
-  Future<String> forgotPassword({required String email}) async {
+  /// Requests a 6-digit OTP to be sent to the user's email for password reset.
+  /// Always returns the server's safe message (same whether or not the email
+  /// exists — prevents enumeration). Throws only on network/server errors.
+  Future<String> forgotPassword(String email) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         '/auth/forgot-password',
         data: {'email': email},
       );
       return (response.data?['message'] as String?) ??
-          'If an account exists with this email, a reset link has been sent';
+          'If an account exists with this email, a reset code has been sent';
     } on DioException catch (e) {
       final errorData = e.response?.data as Map<String, dynamic>?;
-      throw Exception(errorData?['message'] ?? 'Failed to send reset email');
+      throw Exception(errorData?['message'] ?? 'Failed to send reset code');
     }
   }
 
-  /// Resets the user's password using the token from the email link.
+  /// Verifies the 6-digit OTP code for password reset.
+  /// Returns the short-lived [resetSessionToken] (5-min JWT) that must be
+  /// passed to [resetPassword] to set a new password.
+  /// Throws with the exact backend message on wrong/expired code or 429.
+  Future<String> verifyResetCode(String email, String code) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        '/auth/verify-reset-code',
+        data: {'email': email, 'code': code},
+      );
+      final token = response.data?['resetSessionToken'] as String?;
+      if (token == null || token.isEmpty) {
+        throw Exception('Invalid server response: missing resetSessionToken');
+      }
+      return token;
+    } on DioException catch (e) {
+      final errorData = e.response?.data as Map<String, dynamic>?;
+      throw Exception(errorData?['message'] ?? 'Code verification failed');
+    }
+  }
+
+  /// Resets the user's password using the [resetSessionToken] issued by
+  /// [verifyResetCode]. Throws if the token has expired (5-min window).
   Future<void> resetPassword({
-    required String token,
+    required String resetSessionToken,
     required String newPassword,
   }) async {
     try {
       await _client.post<Map<String, dynamic>>(
         '/auth/reset-password',
-        data: {'token': token, 'newPassword': newPassword},
+        data: {
+          'resetSessionToken': resetSessionToken,
+          'newPassword': newPassword,
+        },
       );
     } on DioException catch (e) {
       final errorData = e.response?.data as Map<String, dynamic>?;
       throw Exception(
-          errorData?['message'] ?? 'Password reset failed. The link may have expired.');
+        errorData?['message'] ?? 'Password reset failed. Please start over.',
+      );
     }
   }
 
@@ -248,7 +274,37 @@ class AuthService {
     }
   }
 
-  /// Revokes the refresh token on the server, then clears local storage.
+  /// Submits the 6-digit OTP code entered by the user.
+  /// The access token in the Authorization header identifies which user's
+  /// stored hash to compare against — no token search needed server-side.
+  /// Throws with the exact backend message on 400 (wrong/expired code)
+  /// or 429 (too many attempts — caller should prompt a resend).
+  Future<void> verifyEmail(String code) async {
+    try {
+      await _client.post<Map<String, dynamic>>(
+        '/auth/verify-email',
+        data: {'code': code},
+      );
+    } on DioException catch (e) {
+      final errorData = e.response?.data as Map<String, dynamic>?;
+      throw Exception(errorData?['message'] ?? 'Verification failed');
+    }
+  }
+
+  /// Requests a fresh 6-digit OTP code to be sent to the user's email.
+  /// Should be called when the previous code expired or after 5 failed attempts.
+  /// Returns the server's success message.
+  Future<String> resendVerificationCode() async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        '/auth/resend-verification',
+      );
+      return (response.data?['message'] as String?) ?? 'Verification code sent';
+    } on DioException catch (e) {
+      final errorData = e.response?.data as Map<String, dynamic>?;
+      throw Exception(errorData?['message'] ?? 'Failed to resend code');
+    }
+  }
   Future<void> logout() async {
     final storedRefreshToken = await getStoredRefreshToken();
 

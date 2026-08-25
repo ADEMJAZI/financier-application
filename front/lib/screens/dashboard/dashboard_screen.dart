@@ -18,6 +18,8 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/error_state.dart';
 import '../../widgets/loading_shimmer.dart';
 import '../../widgets/app_snackbar.dart';
+import '../../widgets/app_animations.dart';
+import '../../widgets/premium_card.dart';
 import '../../models/cash_register.dart';
 import '../../models/business.dart';
 
@@ -254,19 +256,39 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.dashboard),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.notificationsComingSoon)),
-              );
-            },
-          ),
-        ],
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: null,
+        actions: const [],
       ),
-      body: businessesAsync.when(
+      body: Stack(
+        children: [
+          // Background glowing orbs for the premium fintech aesthetic
+          if (isDark) ...[
+            Positioned(
+              top: -150,
+              right: -100,
+              child: Container(
+                width: 400,
+                height: 400,
+                decoration: AppColors.glowingOrb(AppColors.primaryDark, opacity: 0.15),
+              ),
+            ),
+            Positioned(
+              bottom: 100,
+              left: -150,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: AppColors.glowingOrb(AppColors.secondaryDark, opacity: 0.08),
+              ),
+            ),
+          ],
+          
+          SafeArea(
+            bottom: false,
+            child: businessesAsync.when(
         loading: () => const LoadingShimmerList(),
         error: (error, stack) => ErrorState(
           message: error.toString(),
@@ -305,7 +327,6 @@ class DashboardScreen extends ConsumerWidget {
               builder: (context, constraints) {
                 final width = constraints.maxWidth;
                 final statColumns = width >= 800 ? 4 : (width >= 600 ? 3 : (width >= 400 ? 2 : 1));
-                final statAspectRatio = width >= 800 ? 1.8 : (width >= 600 ? 1.6 : (width >= 400 ? 1.4 : 2.5));
                 final isWide = width >= 800;
 
                 return Container(
@@ -314,7 +335,7 @@ class DashboardScreen extends ConsumerWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        (isDark ? AppColors.primaryMutedDark : AppColors.primaryMutedLight).withOpacity(0.05),
+                        (isDark ? AppColors.primaryDark : AppColors.primaryLight).withOpacity(0.05),
                         theme.scaffoldBackgroundColor,
                       ],
                       stops: const [0.0, 0.4],
@@ -560,7 +581,7 @@ class DashboardScreen extends ConsumerWidget {
                               crossAxisCount: statColumns,
                               crossAxisSpacing: AppSpacing.md,
                               mainAxisSpacing: AppSpacing.md,
-                              childAspectRatio: statAspectRatio,
+                              mainAxisExtent: 180,
                             ),
                           );
                         },
@@ -630,6 +651,9 @@ class DashboardScreen extends ConsumerWidget {
             ),
           );
         },
+      ),
+          ),
+        ],
       ),
     );
   }
@@ -848,63 +872,77 @@ class _AiSummaryCard extends ConsumerWidget {
     final period = ref.watch(aiSummaryPeriodProvider);
     final summaryAsync = ref.watch(aiBusinessSummaryProvider);
 
-    return Card(
+    return PremiumCard(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header row
-            Row(
+      padding: EdgeInsets.zero,
+      borderRadius: AppSpacing.radiusLg,
+      gradientOverlay: AppColors.categoryGradient('primary', isDark: isDark),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: primary.withOpacity(0.12),
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusSm),
+                    gradient: AppColors.iconContainerGradient(primary, isDark: isDark),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                   ),
-                  child: Icon(Icons.auto_awesome,
-                      color: primary, size: 18),
+                  child: Icon(Icons.auto_awesome, color: primary, size: 18),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Text('ملخص ذكي',
-                      style: AppTypography.bodyLarge.copyWith(
-                          fontWeight: AppTypography.semiBold)),
+                  child: Text(
+                    'ملخص ذكي',
+                    style: AppTypography.bodyLarge.copyWith(
+                      fontWeight: AppTypography.bold,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
                 ),
-                // Week / Month toggle
-                ToggleButtons(
-                  isSelected: [period == 'week', period == 'month'],
-                  onPressed: (i) {
-                    ref.read(aiSummaryPeriodProvider.notifier).state =
-                        i == 0 ? 'week' : 'month';
-                  },
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusSm),
-                  constraints: const BoxConstraints(
-                      minWidth: 54, minHeight: 30),
-                  textStyle: AppTypography.labelSmall,
-                  children: const [
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm),
-                      child: Text('أسبوع'),
-                    ),
-                    Padding(
-                      padding: EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm),
-                      child: Text('شهر'),
-                    ),
-                  ],
+                // Week / Month toggle (styled)
+                Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface.withOpacity(isDark ? 0.3 : 0.5),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    border: Border.all(color: primary.withOpacity(0.3)),
+                  ),
+                  child: ToggleButtons(
+                    isSelected: [period == 'week', period == 'month'],
+                    onPressed: (i) {
+                      ref.read(aiSummaryPeriodProvider.notifier).state =
+                          i == 0 ? 'week' : 'month';
+                    },
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    selectedColor: primary,
+                    fillColor: primary.withOpacity(0.1),
+                    constraints: const BoxConstraints(minWidth: 50, minHeight: 28),
+                    textStyle: AppTypography.labelSmall.copyWith(fontWeight: AppTypography.semiBold),
+                    children: const [
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                        child: Text('أسبوع'),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                        child: Text('شهر'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
+          ),
+          Divider(color: primary.withOpacity(0.15), height: 1),
 
-            // Body
-            summaryAsync.when(
+          // Body
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: summaryAsync.when(
               loading: () => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -995,8 +1033,8 @@ class _AiSummaryCard extends ConsumerWidget {
                 );
               },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1196,3 +1234,4 @@ class _AiAnomalyBanner extends ConsumerWidget {
     );
   }
 }
+

@@ -41,16 +41,17 @@ exports.register = async (req, res) => {
       return res.status(409).json({ message: 'Email already registered' });
     }
 
-    // Generate email verification token
-    const rawVerifyToken = crypto.randomBytes(32).toString('hex');
-    const hashedVerifyToken = hashToken(rawVerifyToken);
+    // Generate a 6-digit numeric OTP code
+    const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = hashToken(rawOtp);
 
     const user = await User.create({
       name,
       email,
       password,
-      emailVerificationToken: hashedVerifyToken,
-      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 h
+      emailVerificationToken: hashedOtp,
+      emailVerificationExpires: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+      emailVerificationAttempts: 0,
     });
 
     // Issue access + refresh tokens
@@ -61,9 +62,8 @@ exports.register = async (req, res) => {
     user.refreshTokens.push(hashToken(refreshToken));
     await user.save();
 
-    // Send verification email (non-blocking)
-    const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${rawVerifyToken}`;
-    sendVerificationEmail(user.email, user.name, verificationLink).then((sent) => {
+    // Send OTP email (non-blocking — registration response is not delayed)
+    sendVerificationEmail(user.email, user.name, rawOtp).then((sent) => {
       if (!sent) console.warn(`Failed to send verification email to ${user.email} during registration`);
     });
 
@@ -243,26 +243,75 @@ exports.getMe = async (req, res) => {
 
 exports.verifyEmail = async (req, res) => {
   try {
-    const { token } = req.body;
+    const { code } = req.body;
 
-    if (!token) {
-      return res.status(400).json({ message: 'Token is required' });
+    if (!code) {
+      return res.status(400).json({ message: 'code is required' });
     }
 
-    const hashedToken = hashToken(token);
-
-    const user = await User.findOne({
-      emailVerificationToken: hashedToken,
-      emailVerificationExpires: { $gt: Date.now() },
-    });
+    // Operates on the authenticated user — no token search across all users.
+    // req.user is populated by the protect middleware on this route.
+    const user = await User.findById(req.user._id);
 
     if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired verification link' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
+    if (user.isEmailVerified) {
+      return res.status(400).json({ message: 'Email is already verified' });
+    }
+
+    // Guard: no code on record (never generated, or already cleared after success)
+    if (!user.emailVerificationToken || !user.emailVerificationExpires) {
+      return res.status(400).json({ message: 'No verification code found. Please request a new one.' });
+    }
+
+    // Check expiry before evaluating the code — avoids incrementing attempts
+    // on a code the user can no longer act on anyway
+    if (user.emailVerificationExpires < Date.now()) {
+      // Clear the stale code so the client knows a resend is needed
+      user.emailVerificationToken = null;
+      user.emailVerificationExpires = null;
+      user.emailVerificationAttempts = 0;
+      await user.save();
+      return res.status(400).json({ message: 'Code expired, please request a new one' });
+    }
+
+    // Brute-force guard: 5 failed attempts invalidates the current code
+    if (user.emailVerificationAttempts >= 5) {
+      user.emailVerificationToken = null;
+      user.emailVerificationExpires = null;
+      user.emailVerificationAttempts = 0;
+      await user.save();
+      return res.status(429).json({ message: 'Too many failed attempts, please request a new code' });
+    }
+
+    // Compare hashed codes
+    const hashedInput = hashToken(code.trim());
+    if (hashedInput !== user.emailVerificationToken) {
+      user.emailVerificationAttempts += 1;
+
+      // If this increment just hit the limit, invalidate immediately
+      if (user.emailVerificationAttempts >= 5) {
+        user.emailVerificationToken = null;
+        user.emailVerificationExpires = null;
+        user.emailVerificationAttempts = 0;
+        await user.save();
+        return res.status(429).json({ message: 'Too many failed attempts, please request a new code' });
+      }
+
+      await user.save();
+      const remaining = 5 - user.emailVerificationAttempts;
+      return res.status(400).json({
+        message: `Invalid code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`,
+      });
+    }
+
+    // Code is correct — mark verified and clear OTP fields
     user.isEmailVerified = true;
     user.emailVerificationToken = null;
     user.emailVerificationExpires = null;
+    user.emailVerificationAttempts = 0;
     await user.save();
 
     res.status(200).json({ success: true, message: 'Email verified successfully' });
@@ -285,18 +334,19 @@ exports.resendVerificationEmail = async (req, res) => {
       return res.status(400).json({ message: 'Email is already verified' });
     }
 
-    const rawToken = crypto.randomBytes(32).toString('hex');
+    // Generate a fresh 6-digit OTP — invalidates any previous code
+    const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    user.emailVerificationToken = hashToken(rawToken);
-    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    user.emailVerificationToken = hashToken(rawOtp);
+    user.emailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    user.emailVerificationAttempts = 0;
     await user.save();
 
-    const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${rawToken}`;
-    sendVerificationEmail(user.email, user.name, verificationLink).then((sent) => {
+    sendVerificationEmail(user.email, user.name, rawOtp).then((sent) => {
       if (!sent) console.warn(`Failed to resend verification email to ${user.email}`);
     });
 
-    res.status(200).json({ success: true, message: 'Verification email sent' });
+    res.status(200).json({ success: true, message: 'Verification code sent' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -305,9 +355,10 @@ exports.resendVerificationEmail = async (req, res) => {
 // ─── Forgot password ──────────────────────────────────────────────────────────
 
 exports.forgotPassword = async (req, res) => {
+  // Always return the same message — prevents email enumeration.
   const safeResponse = {
     success: true,
-    message: 'If an account exists with this email, a reset link has been sent',
+    message: 'If an account exists with this email, a reset code has been sent',
   };
 
   try {
@@ -320,17 +371,20 @@ exports.forgotPassword = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
+      // Deliberately indistinguishable from success — do not reveal existence
       return res.status(200).json(safeResponse);
     }
 
-    const rawToken = crypto.randomBytes(32).toString('hex');
+    // Generate a 6-digit numeric OTP
+    const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    user.passwordResetToken = hashToken(rawToken);
-    user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 h
+    user.passwordResetCode = hashToken(rawOtp);
+    user.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    user.passwordResetAttempts = 0;
     await user.save();
 
-    const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}`;
-    sendPasswordResetEmail(user.email, user.name, resetLink).then((sent) => {
+    // Send OTP email (non-blocking — response is not delayed)
+    sendPasswordResetEmail(user.email, user.name, rawOtp).then((sent) => {
       if (!sent) console.warn(`Failed to send password reset email to ${user.email}`);
     });
 
@@ -340,36 +394,136 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
+// ─── Verify reset code ────────────────────────────────────────────────────────
+
+exports.verifyResetCode = async (req, res) => {
+  // Use the same generic error for every failure path — prevents both email
+  // enumeration and leaking whether a code was ever issued for this address.
+  const genericError = { message: 'Invalid or expired code' };
+
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({ message: 'email and code are required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    // Treat a missing user identically to a wrong code — no enumeration
+    if (!user) {
+      return res.status(400).json(genericError);
+    }
+
+    // No code on record (never requested, or already cleared)
+    if (!user.passwordResetCode || !user.passwordResetExpires) {
+      return res.status(400).json(genericError);
+    }
+
+    // Check expiry before evaluating the code — avoids burning an attempt
+    // on a code the user can no longer act on anyway
+    if (user.passwordResetExpires < Date.now()) {
+      user.passwordResetCode = null;
+      user.passwordResetExpires = null;
+      user.passwordResetAttempts = 0;
+      await user.save();
+      return res.status(400).json(genericError);
+    }
+
+    // Brute-force guard: 5 failed attempts invalidates the current code
+    if (user.passwordResetAttempts >= 5) {
+      user.passwordResetCode = null;
+      user.passwordResetExpires = null;
+      user.passwordResetAttempts = 0;
+      await user.save();
+      return res.status(429).json({ message: 'Too many failed attempts, please request a new code' });
+    }
+
+    // Compare hashed codes
+    const hashedInput = hashToken(code.trim());
+    if (hashedInput !== user.passwordResetCode) {
+      user.passwordResetAttempts += 1;
+
+      // If this increment just hit the limit, invalidate immediately
+      if (user.passwordResetAttempts >= 5) {
+        user.passwordResetCode = null;
+        user.passwordResetExpires = null;
+        user.passwordResetAttempts = 0;
+        await user.save();
+        return res.status(429).json({ message: 'Too many failed attempts, please request a new code' });
+      }
+
+      await user.save();
+      const remaining = 5 - user.passwordResetAttempts;
+      return res.status(400).json({
+        message: `Invalid code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`,
+      });
+    }
+
+    // Code is correct — clear it immediately (single-use) before responding
+    user.passwordResetCode = null;
+    user.passwordResetExpires = null;
+    user.passwordResetAttempts = 0;
+    await user.save();
+
+    // Issue a short-lived reset session token scoped to password reset only.
+    // This proves code ownership on the next step without making the user
+    // re-enter the code — payload includes purpose so it cannot be reused
+    // as a general access token.
+    const resetSessionToken = jwt.sign(
+      { id: user._id, purpose: 'password_reset' },
+      process.env.JWT_SECRET,
+      { expiresIn: '5m' },
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Code verified successfully',
+      resetSessionToken,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // ─── Reset password ───────────────────────────────────────────────────────────
 
 exports.resetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
+    const { resetSessionToken, newPassword } = req.body;
 
-    if (!token || !newPassword) {
-      return res.status(400).json({ message: 'Token and newPassword are required' });
+    if (!resetSessionToken || !newPassword) {
+      return res.status(400).json({ message: 'resetSessionToken and newPassword are required' });
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
-    const user = await User.findOne({
-      passwordResetToken: hashToken(token),
-      passwordResetExpires: { $gt: Date.now() },
-    });
+    // Verify the short-lived reset session token and confirm its purpose.
+    // Any tampering, expiry, or wrong secret rejects here.
+    let decoded;
+    try {
+      decoded = jwt.verify(resetSessionToken, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({ message: 'Reset session expired, please start over' });
+    }
 
+    if (decoded.purpose !== 'password_reset') {
+      return res.status(401).json({ message: 'Reset session expired, please start over' });
+    }
+
+    const user = await User.findById(decoded.id);
     if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired reset link' });
+      return res.status(401).json({ message: 'Reset session expired, please start over' });
     }
 
     user.password = newPassword;
-    user.passwordResetToken = null;
-    user.passwordResetExpires = null;
     // Invalidate ALL existing sessions — force re-login everywhere
     user.refreshTokens = [];
     await user.save();
 
+    // Fire-and-forget — don't block the response on email delivery
     sendPasswordChangeConfirmation(user.email, user.name).catch((err) => {
       console.error('Failed to send password change confirmation:', err.message);
     });

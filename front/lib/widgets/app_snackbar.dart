@@ -47,11 +47,30 @@ class AppSnackbar {
           SnackBar(
             content: Row(
               children: [
-                Icon(
-                  icon,
-                  color: textColor,
-                  size: 24,
-                ),
+                // Animated icon for success — scales in from 0 to 1
+                if (type == SnackbarType.success)
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0.0, end: 1.0),
+                    duration: AppSpacing.animMedium,
+                    curve: AppSpacing.curveSnappy,
+                    builder: (context, value, child) {
+                      return Transform.scale(
+                        scale: value,
+                        child: child,
+                      );
+                    },
+                    child: Icon(
+                      icon,
+                      color: textColor,
+                      size: 24,
+                    ),
+                  )
+                else
+                  Icon(
+                    icon,
+                    color: textColor,
+                    size: 24,
+                  ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'app_animations.dart';
 
 /// Confirmation dialog for destructive actions. Shows item name prominently.
 Future<bool> showConfirmationDialog(
@@ -14,13 +15,17 @@ Future<bool> showConfirmationDialog(
 }) async {
   final result = await showDialog<bool>(
     context: context,
-    builder: (ctx) => _ConfirmationDialog(
-      title: title,
-      message: message,
-      itemName: itemName,
-      confirmLabel: confirmLabel,
-      cancelLabel: cancelLabel,
-      isDangerous: isDangerous,
+    builder: (ctx) => SlideInWidget(
+      direction: SlideDirection.bottom,
+      duration: const Duration(milliseconds: 400),
+      child: _ConfirmationDialog(
+        title: title,
+        message: message,
+        itemName: itemName,
+        confirmLabel: confirmLabel,
+        cancelLabel: cancelLabel,
+        isDangerous: isDangerous,
+      ),
     ),
   );
   return result ?? false;

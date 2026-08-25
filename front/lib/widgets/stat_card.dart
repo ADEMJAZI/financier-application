@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../theme/app_colors.dart';
+import 'premium_card.dart';
 
 /// Enhanced stat card with trend indicator and compact mode.
-/// Used on the dashboard for KPI display.
+/// Used on the dashboard for KPI display, now utilizing PremiumCard.
 class StatCard extends StatelessWidget {
   final String title;
   final String value;
@@ -40,89 +41,88 @@ class StatCard extends StatelessWidget {
 
     final cardPadding = compact ? AppSpacing.md : AppSpacing.lg;
 
-    return Card(
+    return PremiumCard(
+      onTap: onTap,
+      padding: EdgeInsets.zero, // We handle padding inside the gradient container
       margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6),
-                Colors.transparent,
-              ],
-            ),
-          ),
-          padding: EdgeInsets.all(cardPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                    ),
-                    child: Icon(
-                      icon,
-                      color: color,
-                      size: 20,
-                    ),
-                  ),
-                  if (onTap != null && trendPercent == null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Icon(
-                        Icons.arrow_forward_ios,
-                        size: 14,
-                        color: theme.colorScheme.onSurface.withOpacity(0.3),
-                      ),
-                    ),
-                ],
-              ),
-              SizedBox(height: compact ? AppSpacing.sm : AppSpacing.md),
-              // Title
-              Text(
-                title,
-                style: AppTypography.bodySmall.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              // Value
-              Text(
-                value,
-                style: (compact ? AppTypography.h3 : AppTypography.h2).copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontFamily: useNumberFont
-                      ? AppTypography.numberFontFamily
-                      : null,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (trendPercent != null && !compact) ...[
-                const SizedBox(height: AppSpacing.xs),
-                _TrendBadge(
-                  percent: trendPercent!,
-                  isDark: isDark,
-                ),
-              ],
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadiusDirectional.all(Radius.circular(AppSpacing.radiusMd)),
+          gradient: LinearGradient(
+            begin: AlignmentDirectional.topStart,
+            end: AlignmentDirectional.bottomEnd,
+            colors: [
+              isDark ? color.withOpacity(0.15) : color.withOpacity(0.10),
+              isDark ? color.withOpacity(0.03) : color.withOpacity(0.01),
             ],
           ),
+        ),
+        padding: EdgeInsetsDirectional.all(cardPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Gradient icon container
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.iconContainerGradient(color, isDark: isDark),
+                    borderRadius: BorderRadiusDirectional.all(Radius.circular(AppSpacing.radiusSm)),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 20,
+                  ),
+                ),
+                if (onTap != null && trendPercent == null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: theme.colorScheme.onSurface.withOpacity(0.3),
+                    ),
+                  ),
+              ],
+            ),
+            SizedBox(height: compact ? AppSpacing.sm : AppSpacing.md),
+            // Title
+            Text(
+              title,
+              style: AppTypography.labelLarge.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            // Value
+            Text(
+              value,
+              style: (compact ? AppTypography.h3 : AppTypography.h2).copyWith(
+                color: theme.colorScheme.onSurface,
+                fontFamily: useNumberFont
+                    ? AppTypography.numberFontFamily
+                    : null,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (trendPercent != null && !compact) ...[
+              const SizedBox(height: AppSpacing.md),
+              _TrendBadge(
+                percent: trendPercent!,
+                isDark: isDark,
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -147,13 +147,13 @@ class _TrendBadge extends StatelessWidget {
         : (isDark ? AppColors.trendDownDark : AppColors.trendDownLight);
 
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding: const EdgeInsetsDirectional.symmetric(
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
+        borderRadius: BorderRadiusDirectional.all(Radius.circular(AppSpacing.radiusXs)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -163,7 +163,7 @@ class _TrendBadge extends StatelessWidget {
             size: 14,
             color: color,
           ),
-          const SizedBox(width: 2),
+          const SizedBox(width: 4),
           Text(
             '${isPositive ? '+' : ''}${percent.toStringAsFixed(1)}%',
             style: AppTypography.trend.copyWith(

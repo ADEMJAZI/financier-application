@@ -26,8 +26,8 @@ class RecipeIngredient {
           : (json['rawMaterial'] as Map<String, dynamic>)['unit'] as String,
       quantityRequired: (json['quantityRequired'] as num).toDouble(),
       currentStock: json['rawMaterial'] is String
-          ? json['currentStock'] as double? ?? 0
-          : (json['rawMaterial'] as Map<String, dynamic>)['quantity'] as double? ?? 0,
+          ? (json['currentStock'] as num?)?.toDouble() ?? 0.0
+          : ((json['rawMaterial'] as Map<String, dynamic>)['quantity'] as num?)?.toDouble() ?? 0.0,
     );
   }
 

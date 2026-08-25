@@ -4,12 +4,15 @@ import 'dart:ui';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../theme/app_colors.dart';
+import 'animated_count.dart';
+import '../utils/formatters.dart';
 
 /// A glassmorphism floating bar that shows the current cart state
 /// and a checkout CTA button. Appears at the bottom of the POS screen.
 class CartSummaryBar extends StatelessWidget {
   final int itemCount;
   final String totalFormatted;
+  final double? totalAmount; // For AnimatedCount — pass the raw value
   final VoidCallback onCheckout;
   final VoidCallback? onViewCart;
 
@@ -17,6 +20,7 @@ class CartSummaryBar extends StatelessWidget {
     super.key,
     required this.itemCount,
     required this.totalFormatted,
+    this.totalAmount,
     required this.onCheckout,
     this.onViewCart,
   });
@@ -25,6 +29,7 @@ class CartSummaryBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final textPrimary = isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -63,30 +68,32 @@ class CartSummaryBar extends StatelessWidget {
               top: false,
               child: Row(
                 children: [
-                  // Checkout button
-                  SizedBox(
-                    height: AppSpacing.minTouchTarget,
-                    child: ElevatedButton.icon(
-                      onPressed: onCheckout,
-                      icon: const Icon(Icons.shopping_cart_checkout, size: 20),
-                      label: Text(
-                        AppLocalizations.of(context)!.checkout,
-                        style: AppTypography.button.copyWith(
-                          color: Colors.white,
-                        ),
+                  // Checkout button — gradient
+                  GestureDetector(
+                    onTap: onCheckout,
+                    child: Container(
+                      height: AppSpacing.minTouchTarget,
+                      padding: const EdgeInsetsDirectional.symmetric(
+                        horizontal: AppSpacing.xl,
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isDark
-                            ? AppColors.primaryDark
-                            : AppColors.primaryLight,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xl,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                        ),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.fabGradient,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                        boxShadow: AppColors.fabGlow(),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.shopping_cart_checkout,
+                              size: 20, color: Colors.white),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(
+                            AppLocalizations.of(context)!.checkout,
+                            style: AppTypography.button.copyWith(
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -101,14 +108,23 @@ class CartSummaryBar extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(
-                            totalFormatted,
-                            style: AppTypography.currencyMedium.copyWith(
-                              color: theme.colorScheme.onSurface,
-                              fontFamily: AppTypography.numberFontFamily,
-                            ),
-                            textAlign: TextAlign.end,
-                          ),
+                          totalAmount != null
+                              ? AnimatedCount(
+                                  value: totalAmount!,
+                                  formatter: Formatters.currency,
+                                  style: AppTypography.h3.copyWith(
+                                    color: textPrimary,
+                                    fontFamily: AppTypography.numberFontFamily,
+                                  ),
+                                )
+                              : Text(
+                                  Formatters.currency(totalAmount ?? 0),
+                                  style: AppTypography.h3.copyWith(
+                                    color: textPrimary,
+                                    fontFamily: AppTypography.numberFontFamily,
+                                  ),
+                                  textAlign: TextAlign.end,
+                                ),
                           const SizedBox(height: 2),
                           Text(
                             '$itemCount ${AppLocalizations.of(context)!.items}',

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/gradient_fab.dart';
+import '../../widgets/fade_in_up.dart';
+import '../../widgets/animated_count.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../theme/app_spacing.dart';
 import '../../theme/app_typography.dart';
 import '../../providers/expense_provider.dart';
@@ -74,20 +78,83 @@ class ExpensesScreen extends ConsumerWidget {
             child: Row(
               children: ['All', 'Fixed', 'Variable'].map((f) {
                 final selected = filter == f;
+                // Localized labels for screen readers
+                String semanticLabel;
+                switch (f) {
+                  case 'All':
+                    semanticLabel = 'All expenses filter';
+                    break;
+                  case 'Fixed':
+                    semanticLabel = 'Fixed expenses filter';
+                    break;
+                  case 'Variable':
+                    semanticLabel = 'Variable expenses filter';
+                    break;
+                  default:
+                    semanticLabel = '$f expenses filter';
+                }
+
                 return Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.sm),
-                  child: FilterChip(
-                    label: Text(f),
+                  child: Semantics(
                     selected: selected,
-                    onSelected: (_) =>
-                        ref.read(expenseFilterProvider.notifier).state = f,
-                    selectedColor:
-                        theme.colorScheme.primary.withOpacity(0.15),
-                    checkmarkColor: theme.colorScheme.primary,
-                    labelStyle: AppTypography.labelMedium.copyWith(
-                      color: selected
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface,
+                    button: true,
+                    label: semanticLabel,
+                    hint: selected ? 'Currently selected' : 'Tap to select',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () =>
+                            ref.read(expenseFilterProvider.notifier).state = f,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+                        child: Container(
+                          // Ensure minimum 44x44 touch target
+                          constraints: const BoxConstraints(
+                            minWidth: 44,
+                            minHeight: 44,
+                          ),
+                          padding: const EdgeInsetsDirectional.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
+                          ),
+                          decoration: selected
+                              ? AppColors.selectedCardGlow(
+                                  theme.colorScheme.primary,
+                                  isDark: isDark,
+                                )
+                              : BoxDecoration(
+                                  border: Border.all(
+                                    color: theme.dividerColor,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusFull,
+                                  ),
+                                ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (selected)
+                                Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              if (selected) const SizedBox(width: 4),
+                              Text(
+                                f,
+                                style: AppTypography.labelMedium.copyWith(
+                                  color: selected
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.onSurface,
+                                  fontWeight: selected 
+                                      ? AppTypography.semiBold
+                                      : AppTypography.medium,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 );
@@ -126,12 +193,15 @@ class ExpensesScreen extends ConsumerWidget {
                     itemCount: expenses.length,
                     itemBuilder: (ctx, i) {
                       final expense = expenses[i];
-                      return _ExpenseCard(
-                        expense: expense,
-                        isDark: isDark,
-                        onDelete: () => _deleteExpense(context, ref, expense),
-                        onEdit: () =>
-                            _showEditExpenseBottomSheet(context, ref, expense),
+                      return FadeInUp(
+                        delay: Duration(milliseconds: i * 50),
+                        child: _ExpenseCard(
+                          expense: expense,
+                          isDark: isDark,
+                          onDelete: () => _deleteExpense(context, ref, expense),
+                          onEdit: () =>
+                              _showEditExpenseBottomSheet(context, ref, expense),
+                        ),
                       );
                     },
                   ),
@@ -141,23 +211,25 @@ class ExpensesScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: "ai_expense",
-            onPressed: () => _showAiExpenseSheet(context, ref),
-            backgroundColor: theme.colorScheme.secondary,
-            child: const Icon(Icons.auto_awesome),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          FloatingActionButton.extended(
-            heroTag: "manual_expense",
-            onPressed: () => _showAddExpenseBottomSheet(context, ref),
-            icon: const Icon(Icons.add),
-            label: const Text('Add Expense'),
-          ),
-        ],
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 100),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            GradientFAB(
+              heroTag: "ai_expense",
+              onPressed: () => _showAiExpenseSheet(context, ref),
+              icon: LucideIcons.sparkles,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            GradientFAB(
+              heroTag: "manual_expense",
+              onPressed: () => _showAddExpenseBottomSheet(context, ref),
+              icon: LucideIcons.plus,
+              label: 'Add Expense',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -294,8 +366,8 @@ class _ExpenseSummaryRow extends ConsumerWidget {
                 ? AppColors.secondaryDark.withOpacity(0.2)
                 : AppColors.secondaryLight.withOpacity(0.06),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
         ),
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(color: theme.dividerColor),
@@ -306,7 +378,10 @@ class _ExpenseSummaryRow extends ConsumerWidget {
             child: _SummaryItem(
               label: 'Total',
               value: Formatters.currency(total),
+              numericValue: total,
+              category: 'expense',
               color: isDark ? AppColors.dangerDark : AppColors.dangerLight,
+              isDark: isDark,
             ),
           ),
           Container(
@@ -315,7 +390,10 @@ class _ExpenseSummaryRow extends ConsumerWidget {
             child: _SummaryItem(
               label: 'Fixed',
               value: Formatters.currency(fixed),
+              numericValue: fixed,
+              category: 'rent',
               color: isDark ? AppColors.warningDark : AppColors.warningLight,
+              isDark: isDark,
             ),
           ),
           Container(
@@ -324,7 +402,10 @@ class _ExpenseSummaryRow extends ConsumerWidget {
             child: _SummaryItem(
               label: 'Variable',
               value: Formatters.currency(variable),
+              numericValue: variable,
+              category: 'utility',
               color: isDark ? AppColors.infoLight : AppColors.infoLight,
+              isDark: isDark,
             ),
           ),
         ],
@@ -336,30 +417,53 @@ class _ExpenseSummaryRow extends ConsumerWidget {
 class _SummaryItem extends StatelessWidget {
   final String label;
   final String value;
+  final double? numericValue;
+  final String category;
   final Color color;
+  final bool isDark;
 
   const _SummaryItem({
     required this.label,
     required this.value,
+    this.numericValue,
+    required this.category,
     required this.color,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(label,
-            style: AppTypography.labelSmall.copyWith(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withOpacity(0.6))),
-        const SizedBox(height: AppSpacing.xs),
-        Text(value,
-            style: AppTypography.bodySmall
-                .copyWith(color: color, fontWeight: AppTypography.bold),
-            textAlign: TextAlign.center),
-      ],
+    return Container(
+      padding: const EdgeInsetsDirectional.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        gradient: AppColors.categoryGradient(category, isDark: isDark),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      ),
+      child: Column(
+        children: [
+          Text(label,
+              style: AppTypography.labelSmall.copyWith(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withOpacity(0.6))),
+          const SizedBox(height: AppSpacing.xs),
+          numericValue != null
+              ? AnimatedCount(
+                  value: numericValue!,
+                  decimalPlaces: 3,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: color,
+                    fontWeight: AppTypography.bold,
+                    fontFamily: AppTypography.numberFontFamily,
+                  ),
+                )
+              : Text(value,
+                  style: AppTypography.bodySmall
+                      .copyWith(color: color, fontWeight: AppTypography.bold),
+                  textAlign: TextAlign.center),
+        ],
+      ),
     );
   }
 }
@@ -381,21 +485,21 @@ class _ExpenseCard extends StatelessWidget {
   IconData _categoryIcon(String category) {
     switch (category.toLowerCase()) {
       case 'rent':
-        return Icons.home_outlined;
+        return LucideIcons.home;
       case 'utilities':
-        return Icons.bolt_outlined;
+        return LucideIcons.zap;
       case 'salaries':
-        return Icons.people_outlined;
+        return LucideIcons.users;
       case 'supplies':
-        return Icons.shopping_bag_outlined;
+        return LucideIcons.package;
       case 'marketing':
-        return Icons.campaign_outlined;
+        return LucideIcons.megaphone;
       case 'maintenance':
-        return Icons.build_outlined;
+        return LucideIcons.wrench;
       case 'transport':
-        return Icons.local_shipping_outlined;
+        return LucideIcons.truck;
       default:
-        return Icons.receipt_outlined;
+        return LucideIcons.moreHorizontal;
     }
   }
 
@@ -419,8 +523,10 @@ class _ExpenseCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: (expense.isFixed ? warningColor : infoColor)
-                      .withOpacity(0.1),
+                  gradient: AppColors.iconContainerGradient(
+                    expense.isFixed ? warningColor : infoColor,
+                    isDark: isDark,
+                  ),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
                 child: Icon(
@@ -733,14 +839,6 @@ class _ExpenseFormSheetState extends ConsumerState<_ExpenseFormSheet> {
 
       final service = ref.read(expenseServiceProvider);
       final amount = Validators.parseDouble(_amountCtrl.text);
-      final data = {
-        'business': businessId,
-        'category': _selectedCategory,
-        'amount': amount,
-        'isFixed': _isFixed,
-        'description': _descriptionCtrl.text.trim(),
-        'date': _selectedDate.toIso8601String(),
-      };
 
       if (widget.expense != null) {
         await service.updateExpense(

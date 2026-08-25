@@ -151,10 +151,9 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
     // Clear active business state and all per-business cached data.
     ref.read(activeBusinessProvider.notifier).clearActiveBusiness();
-    // Invalidate the business list so it re-fetches (unauthenticated) after
-    // the next login rather than showing stale data.
-    ref.invalidate(businessListProvider);
-
+    
+    // Changing the state to unauthenticated automatically triggers all providers
+    // that watch authProvider (like businessListProvider) to rebuild.
     state = const AsyncValue.data(AuthState(status: AuthStatus.unauthenticated));
   }
 }

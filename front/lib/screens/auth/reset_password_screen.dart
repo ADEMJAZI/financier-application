@@ -51,7 +51,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     try {
       final authService = ref.read(authServiceProvider);
       await authService.resetPassword(
-        token: widget.token,
+        resetSessionToken: widget.token,
         newPassword: _passwordController.text,
       );
 

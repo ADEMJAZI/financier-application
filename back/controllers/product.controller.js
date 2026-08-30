@@ -2,6 +2,7 @@ const Product = require('../models/Product');
 const Business = require('../models/Business');
 const { logAudit } = require('../middleware/auditLogger');
 const { verifyBusinessOwnership } = require('../utils/verifyBusinessOwnership');
+const { sendPushNotification } = require('../utils/notificationService');
 
 // Create a new product
 exports.createProduct = async (req, res) => {
@@ -196,6 +197,19 @@ exports.updateProduct = async (req, res) => {
     if (Object.keys(changes).length > 0) {
       const performedBy = req.headers['x-user-id'] || 'system';
       await logAudit(product.business, 'Product', product._id, 'update', changes, performedBy);
+    }
+
+    // Check low stock if quantity was updated
+    if (changes.quantity && product.reorderPoint > 0 && changes.quantity.old > product.reorderPoint && product.quantity <= product.reorderPoint) {
+      Business.findById(product.business).then(bus => {
+        if (bus && bus.owner) {
+          sendPushNotification(bus.owner.toString(), {
+            title: 'مخزون منخفض',
+            body: `${product.name} أوشك على النفاد (${product.quantity} ${product.unit} متبقية)`,
+            data: { type: 'LOW_STOCK', productId: product._id.toString() }
+          }).catch(console.error);
+        }
+      }).catch(console.error);
     }
 
     res.status(200).json({

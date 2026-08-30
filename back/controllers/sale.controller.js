@@ -3,6 +3,8 @@ const Product = require('../models/Product');
 const Expense = require('../models/Expense');
 const mongoose = require('mongoose');
 const { verifyBusinessOwnership } = require('../utils/verifyBusinessOwnership');
+const { sendPushNotification } = require('../utils/notificationService');
+const Business = require('../models/Business');
 
 // Record a sale (with stock deduction)
 exports.recordSale = async (req, res, next) => {
@@ -53,8 +55,23 @@ exports.recordSale = async (req, res, next) => {
     }
 
     // Deduct stock
+    const oldQuantity = productDoc.quantity;
     productDoc.quantity -= quantity;
     await productDoc.save({ session });
+
+    // Check low stock threshold asynchronously (do not wait)
+    if (productDoc.reorderPoint > 0 && oldQuantity > productDoc.reorderPoint && productDoc.quantity <= productDoc.reorderPoint) {
+      // Find the business owner
+      Business.findById(business).then(bus => {
+        if (bus && bus.owner) {
+          sendPushNotification(bus.owner.toString(), {
+            title: 'مخزون منخفض',
+            body: `${productDoc.name} أوشك على النفاد (${productDoc.quantity} ${productDoc.unit} متبقية)`,
+            data: { type: 'LOW_STOCK', productId: productDoc._id.toString() }
+          }).catch(console.error);
+        }
+      }).catch(console.error);
+    }
 
     // Create sale with snapshot price
     const sale = new Sale({

@@ -68,6 +68,11 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // FCM Tokens for push notifications
+    fcmTokens: {
+      type: [String],
+      default: [],
+    },
     createdAt: {
       type: Date,
       default: Date.now,

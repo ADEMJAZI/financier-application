@@ -6,8 +6,12 @@ import 'router/app_router.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
 import 'l10n/app_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  
   runApp(
     const ProviderScope(
       child: MyApp(),

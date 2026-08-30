@@ -3,7 +3,23 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const winston = require('winston');
 const { generalApiLimiter } = require('./middleware/rateLimiter');
+
+// ── Configure Winston Logger ───────────────────────────────────────────────────
+const logger = winston.createLogger({
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console()
+  ]
+});
+// ──────────────────────────────────────────────────────────────────────────────
 
 const app = express();
 
@@ -28,8 +44,18 @@ const io = new Server(server, {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ── Middleware ─────────────────────────────────────────────────────────────────
+app.use(helmet());
+app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+
+const allowedOrigins = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : ['*'];
 app.use(cors({
-  origin: '*',
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: false,
@@ -79,6 +105,7 @@ const menuItemRoutes     = require('./routes/menuItem.routes');
 const menuItemSaleRoutes = require('./routes/menuItemSale.routes');
 const orderRoutes        = require('./routes/order.routes');
 const aiRoutes           = require('./routes/ai.routes');
+const notificationsRoutes = require('./routes/notifications.routes');
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ── Password reset web page ────────────────────────────────────────────────────
@@ -256,6 +283,7 @@ app.use('/api/menu-items',     menuItemRoutes);
 app.use('/api/menu-item-sales', menuItemSaleRoutes);
 app.use('/api/orders',         orderRoutes);
 app.use('/api/ai',             aiRoutes);
+app.use('/api/notifications',  notificationsRoutes);
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ── 404 handler ────────────────────────────────────────────────────────────────
@@ -267,11 +295,11 @@ app.use((req, res) => {
 // ── Global error handler ───────────────────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.message || err);
+  logger.error('Unhandled error', { message: err.message, stack: err.stack, path: req.path, method: req.method });
   const status = err.status || err.statusCode || 500;
   res.status(status).json({
     success: false,
-    message: err.message || 'Internal server error',
+    message: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
   });
 });
 // ──────────────────────────────────────────────────────────────────────────────
@@ -279,11 +307,10 @@ app.use((err, req, res, next) => {
 // ── Start server ───────────────────────────────────────────────────────────────
 const port = process.env.PORT || 3000;
 server.listen(port, '0.0.0.0', () => {
-  console.log('\n🚀 ================================');
-  console.log(`✅ Backend started successfully`);
-  console.log(`🌐 Listening on port ${port}`);
-  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log('🔐 API ready to accept requests');
-  console.log('================================\n');
+  logger.info(`Backend started successfully on port ${port}`, { environment: process.env.NODE_ENV || 'development' });
+  
+  // Initialize cron jobs
+  const { initScheduler } = require('./jobs/scheduler');
+  initScheduler();
 });
 // ──────────────────────────────────────────────────────────────────────────────

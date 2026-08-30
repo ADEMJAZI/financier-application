@@ -21,6 +21,7 @@ const menuItemSchema = new mongoose.Schema(
     business: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Business',
+      index: true,
       required: [true, 'Business ID is required'],
     },
     name: {

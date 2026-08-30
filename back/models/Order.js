@@ -56,6 +56,7 @@ const orderSchema = new mongoose.Schema(
     business: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Business',
+      index: true,
       required: [true, 'Business ID is required'],
     },
     // Sequential invoice number per business (1, 2, 3, …).

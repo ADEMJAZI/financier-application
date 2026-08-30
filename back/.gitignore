@@ -1,2 +1,10 @@
 node_modules/
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+serviceAccountKey.json
+google-services.json
+firebase-adminsdk-*.json
+*.log

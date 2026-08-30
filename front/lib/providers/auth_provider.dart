@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user.dart';
-import 'service_providers.dart';
+import '../services/auth_service.dart';
+import '../services/api_client.dart';
+import '../services/notification_service.dart';
 import 'business_provider.dart';
+import 'service_providers.dart';
 
 enum AuthStatus { unauthenticated, loading, authenticated }
 
@@ -49,6 +52,10 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       // Try to validate the stored access token.
       try {
         final user = await authService.getMe();
+        final storedToken = await authService.getStoredToken();
+        if (storedToken != null) {
+          NotificationService().init(ApiClient.baseUrl, storedToken);
+        }
         return AuthState(status: AuthStatus.authenticated, user: user);
       } on Exception catch (e) {
         final msg = e.toString().toLowerCase();
@@ -65,6 +72,10 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
             // refreshAccessToken() already called storeToken() internally,
             // so ApiClient._token is updated before this getMe() fires.
             final user = await authService.getMe();
+            final storedToken = await authService.getStoredToken();
+            if (storedToken != null) {
+              NotificationService().init(ApiClient.baseUrl, storedToken);
+            }
             return AuthState(status: AuthStatus.authenticated, user: user);
           } catch (_) {
             // Refresh token also gone/revoked — force re-login.
@@ -100,6 +111,9 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       // and the Business Picker will fetch fresh data when it mounts.
       ref.read(activeBusinessProvider.notifier).clearActiveBusiness();
 
+      // Initialize NotificationService with FCM
+      NotificationService().init(ApiClient.baseUrl, authResponse.accessToken);
+
       state = AsyncValue.data(
         AuthState(status: AuthStatus.authenticated, user: authResponse.user),
       );
@@ -131,6 +145,8 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
 
       // Same as login — wipe stale state, let the picker re-fetch naturally.
       ref.read(activeBusinessProvider.notifier).clearActiveBusiness();
+
+      NotificationService().init(ApiClient.baseUrl, authResponse.accessToken);
 
       state = AsyncValue.data(
         AuthState(status: AuthStatus.authenticated, user: authResponse.user),

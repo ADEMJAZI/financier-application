@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import 'api_client.dart';
+import 'notification_service.dart';
 
 class AuthResponse {
   final String accessToken;
@@ -307,6 +308,11 @@ class AuthService {
   }
   Future<void> logout() async {
     final storedRefreshToken = await getStoredRefreshToken();
+    final storedAccessToken = await getStoredToken();
+
+    if (storedAccessToken != null) {
+      await NotificationService().unregisterToken(ApiClient.baseUrl, storedAccessToken);
+    }
 
     // Clear local state immediately — don't let a network error block logout
     await clearToken();

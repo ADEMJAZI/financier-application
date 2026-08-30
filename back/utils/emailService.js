@@ -1,12 +1,19 @@
-const { Resend } = require('resend');
+const { BrevoClient } = require('@getbrevo/brevo');
 
-const FROM_ADDRESS = 'onboarding@resend.dev';
-
-// Lazy-initialize the Resend client so the module can be required without
-// crashing when RESEND_API_KEY hasn't been loaded into the environment yet
+// Lazy-initialize the Brevo client so the module can be required without
+// crashing when BREVO_API_KEY hasn't been loaded into the environment yet
 // (e.g. during syntax checks or early require chains before dotenv runs).
-function getResendClient() {
-  return new Resend(process.env.RESEND_API_KEY);
+function getBrevoClient() {
+  return new BrevoClient({
+    apiKey: process.env.BREVO_API_KEY,
+  });
+}
+
+function getSender() {
+  return {
+    email: process.env.BREVO_SENDER_EMAIL,
+    name: process.env.BREVO_SENDER_NAME || 'تاجر',
+  };
 }
 
 /**
@@ -17,23 +24,18 @@ function getResendClient() {
  */
 async function sendVerificationEmail(to, name, otp) {
   try {
-    const resend = getResendClient();
-    const { data, error } = await resend.emails.send({
-      from: FROM_ADDRESS,
-      to: [to],
+    const brevo = getBrevoClient();
+    const result = await brevo.transactionalEmails.sendTransacEmail({
+      sender: getSender(),
+      to: [{ email: to }],
       subject: 'رمز التحقق - تاجر',
-      html: getVerificationEmailHTML(name, otp),
+      htmlContent: getVerificationEmailHTML(name, otp),
     });
 
-    if (error) {
-      console.error('Email verification send failed:', error);
-      return false;
-    }
-
-    console.log('Verification email sent successfully:', data?.id);
+    console.log('Verification email sent successfully:', result?.messageId);
     return true;
   } catch (error) {
-    console.error('Email service error (verification):', error.message);
+    console.error('Email service error (verification):', error.message ?? error);
     return false;
   }
 }
@@ -46,23 +48,18 @@ async function sendVerificationEmail(to, name, otp) {
  */
 async function sendPasswordResetEmail(to, name, otp) {
   try {
-    const resend = getResendClient();
-    const { data, error } = await resend.emails.send({
-      from: FROM_ADDRESS,
-      to: [to],
+    const brevo = getBrevoClient();
+    const result = await brevo.transactionalEmails.sendTransacEmail({
+      sender: getSender(),
+      to: [{ email: to }],
       subject: 'رمز إعادة تعيين كلمة المرور - تاجر',
-      html: getPasswordResetEmailHTML(name, otp),
+      htmlContent: getPasswordResetEmailHTML(name, otp),
     });
 
-    if (error) {
-      console.error('Password reset email send failed:', error);
-      return false;
-    }
-
-    console.log('Password reset email sent successfully:', data?.id);
+    console.log('Password reset email sent successfully:', result?.messageId);
     return true;
   } catch (error) {
-    console.error('Email service error (password reset):', error.message);
+    console.error('Email service error (password reset):', error.message ?? error);
     return false;
   }
 }
@@ -74,26 +71,25 @@ async function sendPasswordResetEmail(to, name, otp) {
  */
 async function sendPasswordChangeConfirmation(to, name) {
   try {
-    const resend = getResendClient();
-    const { data, error } = await resend.emails.send({
-      from: FROM_ADDRESS,
-      to: [to],
+    const brevo = getBrevoClient();
+    const result = await brevo.transactionalEmails.sendTransacEmail({
+      sender: getSender(),
+      to: [{ email: to }],
       subject: 'تم تغيير كلمة المرور - تاجر',
-      html: getPasswordChangeConfirmationHTML(name),
+      htmlContent: getPasswordChangeConfirmationHTML(name),
     });
 
-    if (error) {
-      console.error('Password change confirmation email send failed:', error);
-      return false;
-    }
-
-    console.log('Password change confirmation email sent successfully:', data?.id);
+    console.log('Password change confirmation email sent successfully:', result?.messageId);
     return true;
   } catch (error) {
-    console.error('Email service error (password change confirmation):', error.message);
+    console.error('Email service error (password change confirmation):', error.message ?? error);
     return false;
   }
 }
+
+// ─── HTML Templates ────────────────────────────────────────────────────────────
+// Templates are unchanged from the Resend version — only the sending
+// mechanism above has changed. All Arabic RTL styling is preserved.
 
 /**
  * Generate HTML template for email verification OTP
@@ -158,7 +154,6 @@ function getVerificationEmailHTML(name, otp) {
           color: #4a5568;
           margin-bottom: 32px;
         }
-        /* OTP code block */
         .otp-wrapper {
           text-align: center;
           margin: 0 0 32px;
@@ -187,7 +182,6 @@ function getVerificationEmailHTML(name, otp) {
           direction: ltr;
           display: block;
         }
-        /* Expiry notice */
         .expiry-notice {
           background-color: #fef3c7;
           border: 1px solid #f59e0b;
@@ -198,7 +192,6 @@ function getVerificationEmailHTML(name, otp) {
           color: #92400e;
           line-height: 1.5;
         }
-        /* Attempt warning */
         .attempt-notice {
           background-color: #fef2f2;
           border: 1px solid #fca5a5;
@@ -228,44 +221,35 @@ function getVerificationEmailHTML(name, otp) {
     </head>
     <body>
       <div class="container">
-
         <div class="header">
           <div class="logo">تاجر</div>
           <p class="header-subtitle">مدير الأعمال الذكي</p>
         </div>
-
         <div class="content">
           <div class="greeting">مرحباً ${name}،</div>
-
           <div class="message">
             شكراً لتسجيلك في تاجر! أدخل رمز التحقق أدناه في التطبيق لتأكيد عنوان بريدك الإلكتروني.
           </div>
-
           <div class="otp-wrapper">
             <div class="otp-label">رمز التحقق المكوّن من 6 أرقام</div>
             <div class="otp-box">
               <span class="otp-code">${otpDisplay}</span>
             </div>
           </div>
-
           <div class="expiry-notice">
             <strong>⏱ تنبيه:</strong> هذا الرمز صالح لمدة <strong>10 دقائق فقط</strong> من وقت إرسال هذه الرسالة. بعد انتهاء صلاحيته، يمكنك طلب رمز جديد من التطبيق.
           </div>
-
           <div class="attempt-notice">
             <strong>🔒 تنبيه أمني:</strong> لديك 5 محاولات لإدخال الرمز. بعد 5 محاولات فاشلة، سيتم إلغاء الرمز الحالي ويجب طلب رمز جديد.
           </div>
-
           <div class="ignore-notice">
             إذا لم تقم بإنشاء حساب في تاجر، يمكنك تجاهل هذه الرسالة بأمان. لن يتم إنشاء أي حساب دون تأكيد الرمز.
           </div>
         </div>
-
         <div class="footer">
           <p>© 2026 تاجر - مدير الأعمال</p>
           <p>هذه رسالة تلقائية، يرجى عدم الرد عليها.</p>
         </div>
-
       </div>
     </body>
     </html>
@@ -278,7 +262,6 @@ function getVerificationEmailHTML(name, otp) {
  * @param {string} otp - Raw 6-digit code to display
  */
 function getPasswordResetEmailHTML(name, otp) {
-  // Split the 6 digits into two groups of 3 for readability: e.g. "482 917"
   const otpDisplay = `${otp.slice(0, 3)} ${otp.slice(3)}`;
 
   return `
@@ -401,44 +384,35 @@ function getPasswordResetEmailHTML(name, otp) {
     </head>
     <body>
       <div class="container">
-
         <div class="header">
           <div class="logo">تاجر</div>
           <p class="header-subtitle">إعادة تعيين كلمة المرور</p>
         </div>
-
         <div class="content">
           <div class="greeting">مرحباً ${name}،</div>
-
           <div class="message">
             تلقينا طلباً لإعادة تعيين كلمة المرور لحسابك في تاجر. أدخل رمز إعادة التعيين أدناه في التطبيق.
           </div>
-
           <div class="otp-wrapper">
             <div class="otp-label">رمز إعادة التعيين المكوّن من 6 أرقام</div>
             <div class="otp-box">
               <span class="otp-code">${otpDisplay}</span>
             </div>
           </div>
-
           <div class="expiry-notice">
             <strong>⏱ تنبيه:</strong> هذا الرمز صالح لمدة <strong>10 دقائق فقط</strong> من وقت إرسال هذه الرسالة. بعد انتهاء صلاحيته، يمكنك طلب رمز جديد من التطبيق.
           </div>
-
           <div class="attempt-notice">
             <strong>🔒 تنبيه أمني:</strong> لديك 5 محاولات لإدخال الرمز. بعد 5 محاولات فاشلة، سيتم إلغاء الرمز الحالي ويجب طلب رمز جديد.
           </div>
-
           <div class="ignore-notice">
             إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذه الرسالة بأمان. كلمة مرورك الحالية لن تتغير.
           </div>
         </div>
-
         <div class="footer">
           <p>© 2026 تاجر - مدير الأعمال</p>
           <p>هذه رسالة تلقائية، يرجى عدم الرد عليها.</p>
         </div>
-
       </div>
     </body>
     </html>
@@ -457,63 +431,63 @@ function getPasswordChangeConfirmationHTML(name) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>تم تغيير كلمة المرور</title>
       <style>
-        body { 
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-          margin: 0; 
-          padding: 0; 
-          background-color: #f5f7fa; 
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          margin: 0;
+          padding: 0;
+          background-color: #f5f7fa;
           color: #2d3748;
           direction: rtl;
         }
-        .container { 
-          max-width: 600px; 
-          margin: 0 auto; 
-          background-color: #ffffff; 
-          border-radius: 8px; 
-          overflow: hidden; 
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+          background-color: #ffffff;
+          border-radius: 8px;
+          overflow: hidden;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        .header { 
-          background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); 
-          color: #ffffff; 
-          padding: 30px 20px; 
-          text-align: center; 
+        .header {
+          background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+          color: #ffffff;
+          padding: 30px 20px;
+          text-align: center;
         }
-        .logo { 
-          font-size: 32px; 
-          font-weight: bold; 
-          margin-bottom: 10px; 
+        .logo {
+          font-size: 32px;
+          font-weight: bold;
+          margin-bottom: 10px;
         }
-        .content { 
-          padding: 30px; 
+        .content {
+          padding: 30px;
         }
-        .greeting { 
-          font-size: 18px; 
-          margin-bottom: 20px; 
-          color: #2d3748; 
+        .greeting {
+          font-size: 18px;
+          margin-bottom: 20px;
+          color: #2d3748;
         }
-        .message { 
-          font-size: 16px; 
-          line-height: 1.6; 
-          margin-bottom: 30px; 
-          color: #4a5568; 
+        .message {
+          font-size: 16px;
+          line-height: 1.6;
+          margin-bottom: 30px;
+          color: #4a5568;
         }
-        .footer { 
-          background-color: #f7fafc; 
-          padding: 20px; 
-          text-align: center; 
-          font-size: 14px; 
-          color: #718096; 
-          border-top: 1px solid #e2e8f0; 
+        .footer {
+          background-color: #f7fafc;
+          padding: 20px;
+          text-align: center;
+          font-size: 14px;
+          color: #718096;
+          border-top: 1px solid #e2e8f0;
         }
-        .success-notice { 
-          background-color: #f0fff4; 
-          border: 1px solid #9ae6b4; 
-          border-radius: 4px; 
-          padding: 15px; 
-          margin-top: 20px; 
-          font-size: 14px; 
-          color: #2f855a; 
+        .success-notice {
+          background-color: #f0fff4;
+          border: 1px solid #9ae6b4;
+          border-radius: 4px;
+          padding: 15px;
+          margin-top: 20px;
+          font-size: 14px;
+          color: #2f855a;
         }
       </style>
     </head>
@@ -523,23 +497,18 @@ function getPasswordChangeConfirmationHTML(name) {
           <div class="logo">تاجر</div>
           <p>تأكيد تغيير كلمة المرور</p>
         </div>
-        
         <div class="content">
           <div class="greeting">مرحباً ${name}،</div>
-          
           <div class="message">
             تم تغيير كلمة المرور لحسابك في تاجر بنجاح. إذا قمت بهذا التغيير، فلا حاجة لاتخاذ أي إجراء إضافي.
           </div>
-          
           <div class="success-notice">
             <strong>تم بنجاح:</strong> تم تغيير كلمة المرور في ${new Date().toLocaleString('ar-SA', { timeZone: 'Asia/Riyadh' })}
           </div>
-          
           <div class="message" style="margin-top: 30px; font-size: 14px;">
             إذا لم تقم بتغيير كلمة المرور، يرجى الاتصال بنا فوراً لحماية حسابك.
           </div>
         </div>
-        
         <div class="footer">
           <p>© 2026 تاجر - مدير الأعمال</p>
           <p>هذه رسالة تلقائية، يرجى عدم الرد عليها.</p>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'theme/app_theme.dart';
@@ -10,8 +11,16 @@ import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  
+
+  // Firebase initialization is best-effort — the app works fully without it.
+  // Push notifications will be silently disabled until a real google-services.json
+  // (from the Firebase Console) is placed at android/app/google-services.json.
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase init skipped: $e');
+  }
+
   runApp(
     const ProviderScope(
       child: MyApp(),
